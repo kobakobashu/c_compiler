@@ -1,20 +1,13 @@
-#include <ctype.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "9cc.h"
 
-void gen(Node *node) {
+static void gen_expr(Node *node) {
   if (node->kind == ND_NUM) {
     printf("  push %d\n", node->val);
     return;
   }
 
-  gen(node->lhs);
-  gen(node->rhs);
+  gen_expr(node->lhs);
+  gen_expr(node->rhs);
 
   printf("  pop rdi\n");
   printf("  pop rax\n");
@@ -56,4 +49,15 @@ void gen(Node *node) {
   }
 
   printf("  push rax\n");
+}
+
+void codegen(Node *node) {
+  printf(".intel_syntax noprefix\n");
+  printf(".globl main\n");
+  printf("main:\n");
+
+  gen_expr(node);
+
+  printf("  pop rax\n");
+  printf("  ret\n");
 }

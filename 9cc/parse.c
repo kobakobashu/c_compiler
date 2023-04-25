@@ -1,11 +1,8 @@
-#include <ctype.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "9cc.h"
+
+//
+// tokenizer
+//
 
 Token *token;
 
@@ -30,36 +27,7 @@ void error(char *fmt, ...) {
     exit(1);
 }
 
-bool consume(char *op) {
-  if (token->kind != TK_RESERVED ||
-      strlen(op) != token->len ||
-      memcmp(token->str, op, token->len))
-    return false;
-  token = token->next;
-  return true;
-}
-
-void expect(char *op) {
-  if (token->kind != TK_RESERVED ||
-      strlen(op) != token->len ||
-      memcmp(token->str, op, token->len))
-    error_at(token->str, "unexpected operator: \"%s\"", op);
-  token = token->next;
-}
-
-int expect_number() {
-  if (token->kind != TK_NUM)
-    error_at(token->str, "unexpected type: not integer");
-  int val = token->val;
-  token = token->next;
-  return val;
-}
-
-bool at_eof() {
-    return token->kind == TK_EOF;
-}
-
-Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
+static Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
   tok->str = str;
@@ -68,7 +36,7 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
   return tok;
 }
 
-bool startswith(char *p, char *q) {
+static bool startswith(char *p, char *q) {
   return memcmp(p, q, strlen(q)) == 0;
 }
 
@@ -111,9 +79,42 @@ Token *tokenize() {
   return head.next;
 }
 
-Node *expr();
+//
+// parser
+//
 
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
+static Node *expr();
+
+static bool consume(char *op) {
+  if (token->kind != TK_RESERVED ||
+      strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
+    return false;
+  token = token->next;
+  return true;
+}
+
+static void expect(char *op) {
+  if (token->kind != TK_RESERVED ||
+      strlen(op) != token->len ||
+      memcmp(token->str, op, token->len))
+    error_at(token->str, "unexpected operator: \"%s\"", op);
+  token = token->next;
+}
+
+static int expect_number() {
+  if (token->kind != TK_NUM)
+    error_at(token->str, "unexpected type: not integer");
+  int val = token->val;
+  token = token->next;
+  return val;
+}
+
+static bool at_eof() {
+    return token->kind == TK_EOF;
+}
+
+static Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
   node->lhs = lhs;
@@ -121,14 +122,14 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   return node;
 }
 
-Node *new_node_num(int val) {
+static Node *new_node_num(int val) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = ND_NUM;
   node->val = val;
   return node;
 }
 
-Node *primary() {
+static Node *primary() {
   if (consume("(")) {
     Node *node = expr();
     expect(")");
@@ -137,7 +138,7 @@ Node *primary() {
   return new_node_num(expect_number());
 }
 
-Node *unary() {
+static Node *unary() {
   if (consume("+")) {
     return unary();
   }
@@ -147,7 +148,7 @@ Node *unary() {
   return primary();
 }
 
-Node *mul() {
+static Node *mul() {
   Node *node = unary();
 
   for (;;) {
@@ -161,7 +162,7 @@ Node *mul() {
   }
 }
 
-Node *add() {
+static Node *add() {
   Node *node = mul();
 
   for (;;) {
@@ -175,7 +176,7 @@ Node *add() {
   }
 }
 
-Node *relational() {
+static Node *relational() {
   Node *node = add();
 
   for (;;) {
@@ -193,7 +194,7 @@ Node *relational() {
   }
 }
 
-Node *equality() {
+static Node *equality() {
   Node *node = relational();
 
   for (;;) {
@@ -207,8 +208,15 @@ Node *equality() {
   }
 }
 
-Node *expr() {
+static Node *expr() {
   Node *node = equality();
 
+  return node;
+}
+
+Node *parse() {
+  Node *node = expr();
+  if (token->kind != TK_EOF)
+    error("extra token");
   return node;
 }
