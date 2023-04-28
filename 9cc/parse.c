@@ -40,6 +40,13 @@ static bool startswith(char *p, char *q) {
   return memcmp(p, q, strlen(q)) == 0;
 }
 
+int is_alnum(char c) {
+  return ('a' <= c && c <= 'z') ||
+         ('A' <= c && c <= 'Z') ||
+         ('1' <= c && c <= '9') ||
+         (c == '_');
+}
+
 Token *tokenize() {
   char *p = user_input;
   Token head;
@@ -69,6 +76,12 @@ Token *tokenize() {
       char *q = p;
       cur->val = strtol(p, &p, 10);
       cur->len = p - q;
+      continue;
+    }
+
+    if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+      cur = new_token(TK_RETURN, cur, p, 6);
+      p += 6;
       continue;
     }
 
@@ -124,6 +137,14 @@ static Token *consume_ident() {
   Token *tok = token;
   token = token->next;
   return tok;
+}
+
+static bool consume_return(TokenKind kind) {
+  if (token->kind != kind) {
+    return false;
+  }
+  token = token->next;
+  return true;
 }
 
 static void expect(char *op) {
@@ -273,20 +294,32 @@ static Node *equality() {
   }
 }
 
-Node *assign() {
+static Node *assign() {
   Node *node = equality();
   if (consume("="))
     node = new_node(ND_ASSIGN, node, assign());
   return node;
 }
 
-Node *expr() {
+static Node *expr() {
   return assign();
 }
 
 static Node *stmt() {
-  Node *node = expr();
-  expect(";");
+  Node *node;
+
+  if (consume_return(TK_RETURN)) {
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_RETURN;
+    node->lhs = expr();
+  } else {
+    node = expr();
+  }
+
+  if (!consume(";")) {
+    error_at(token->str, "';' is needed");
+  }
+
   return node;
 }
 
