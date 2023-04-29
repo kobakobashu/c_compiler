@@ -41,6 +41,14 @@ extern Token *token;
 // parser
 //
 
+typedef struct LVar LVar;
+struct LVar {
+  LVar *next;
+  char *name;
+  int len;
+  int offset;
+};
+
 typedef enum {
     ND_ADD,
     ND_SUB,
@@ -59,13 +67,21 @@ typedef enum {
 typedef struct Node Node;
 struct Node {
   NodeKind kind;
+  Node *next;
   Node *lhs;
   Node *rhs;
   int val;
   int offset;
 };
 
-void *parse();
+
+typedef struct Function Function;
+struct Function {
+  Node *body;
+  LVar *locals;
+};
+
+Function *parse();
 
 extern Node *code[100];
 
@@ -73,6 +89,6 @@ extern Node *code[100];
 // codegen.c
 //
 
-void codegen();
+void codegen(Function *prog);
 
 #endif

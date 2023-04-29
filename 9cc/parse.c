@@ -106,15 +106,6 @@ Token *tokenize() {
 // parser
 //
 
-typedef struct LVar LVar;
-
-struct LVar {
-  LVar *next;
-  char *name;
-  int len;
-  int offset;
-};
-
 LVar *locals;
 
 static Node *expr();
@@ -323,10 +314,17 @@ static Node *stmt() {
   return node;
 }
 
-void *parse() {
-  int i = 0;
+Function *parse() {
+  Node head = {};
+  Node *cur = &head;
+
   while (!at_eof()) {
-    code[i++] = stmt();
+    cur->next = stmt();
+    cur = cur->next;
   }
-  code[i] = NULL;
+
+  Function *prog = calloc(1, sizeof(Function));
+  prog->body = head.next;
+  prog->locals = locals;
+  return prog;
 }
