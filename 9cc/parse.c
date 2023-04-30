@@ -66,7 +66,7 @@ Token *tokenize() {
       continue;
     }
 
-    if (strchr("+-*/()<>=;", *p)) {
+    if (strchr("+-*/()<>=;{}", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
@@ -110,7 +110,7 @@ LVar *locals;
 
 static Node *expr();
 
-Node *code[100];
+static Node *compound_stmt();
 
 static bool consume(char *op) {
   if (token->kind != TK_RESERVED ||
@@ -209,7 +209,6 @@ static Node *primary() {
       node->offset = lvar->offset;
       locals = lvar;
     }
-    // node->offset = (tok->str[0] - 'a' + 1) * 8;
     return node;
   }
   return new_node_num(expect_number());
@@ -303,28 +302,46 @@ static Node *stmt() {
     node = calloc(1, sizeof(Node));
     node->kind = ND_RETURN;
     node->lhs = expr();
-  } else {
-    node = expr();
+    if (!consume(";")) {
+      error_at(token->str, "';' is needed");
+    }
+    return node;
   }
 
+  if (*token->str == '{') {
+    token = token->next;
+    return compound_stmt();
+  }
+
+  node = expr();
   if (!consume(";")) {
     error_at(token->str, "';' is needed");
   }
-
   return node;
 }
 
-Function *parse() {
+static Node *compound_stmt() {
   Node head = {};
   Node *cur = &head;
-
-  while (!at_eof()) {
+  while (*token->str != '}') {
     cur->next = stmt();
     cur = cur->next;
   }
 
+  Node *node = new_node(ND_BLOCK, NULL, NULL);
+  node->body = head.next;
+  token = token->next;
+  return node;
+}
+
+Function *parse() {
+  if (*token->str != '{') {
+    error_at(token->str, "need '{'");
+  }
+  token = token->next;
+
   Function *prog = calloc(1, sizeof(Function));
-  prog->body = head.next;
+  prog->body = compound_stmt();
   prog->locals = locals;
   return prog;
 }

@@ -62,6 +62,7 @@ typedef enum {
     ND_LVAR,
     ND_ASSIGN, // =
     ND_RETURN, // ret
+    ND_BLOCK, // { ... }
 } NodeKind;
 
 typedef struct Node Node;
@@ -70,6 +71,7 @@ struct Node {
   Node *next;
   Node *lhs;
   Node *rhs;
+  Node *body;
   int val;
   int offset;
 };

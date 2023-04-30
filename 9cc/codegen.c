@@ -11,6 +11,10 @@ void gen_lval(Node *node) {
 
 static void gen(Node *node) {
   switch (node->kind) {
+  case ND_BLOCK:
+    for (Node *n = node->body; n; n = n->next)
+      gen(n);
+    return;
   case ND_NUM:
     printf("  push %d\n", node->val);
     return;
@@ -93,10 +97,11 @@ void codegen(Function *prog) {
   printf("  mov rbp, rsp\n");
   printf("  sub rsp, 208\n");
 
-  for (Node *n = prog->body; n; n = n->next) {
-    gen(n);
-    printf("  pop rax\n");
-  }
+  // for (Node *n = prog->body; n; n = n->next) {
+  //   gen(n);
+  //   printf("  pop rax\n");
+  // }
+  gen(prog->body);
 
   printf("  mov rsp, rbp\n");
   printf("  pop rbp\n");
