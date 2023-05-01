@@ -1,5 +1,10 @@
 #include "9cc.h"
 
+static int count(void) {
+  static int i = 1;
+  return i++;
+}
+
 void gen_lval(Node *node) {
   if (node->kind != ND_LVAR)
     error("lval is not variable");
@@ -11,6 +16,21 @@ void gen_lval(Node *node) {
 
 static void gen(Node *node) {
   switch (node->kind) {
+  case ND_IF: {
+    int c = count();
+    gen(node->cond);
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+    printf("  je  .L.else%d\n", c);
+    gen(node->then);
+    printf("  jmp .L.end%d\n", c);
+    printf(".L.else%d:\n", c);
+    if (node->els) {
+      gen(node->els);
+    }
+    printf(".L.end%d:\n", c);
+    return;
+  }
   case ND_BLOCK:
     for (Node *n = node->body; n; n = n->next)
       gen(n);

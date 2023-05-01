@@ -20,6 +20,8 @@ typedef enum {
     TK_NUM,
     TK_EOF,
     TK_RETURN,
+    TK_IF,
+    TK_ELSE,
 } TokenKind;
 
 typedef struct Token Token;
@@ -63,6 +65,7 @@ typedef enum {
     ND_ASSIGN, // =
     ND_RETURN, // ret
     ND_BLOCK, // { ... }
+    ND_IF, // if
 } NodeKind;
 
 typedef struct Node Node;
@@ -72,6 +75,9 @@ struct Node {
   Node *lhs;
   Node *rhs;
   Node *body;
+  Node *cond;
+  Node *then;
+  Node *els;
   int val;
   int offset;
 };
