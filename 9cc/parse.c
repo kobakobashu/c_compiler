@@ -313,6 +313,11 @@ static Node *stmt() {
     return compound_stmt();
   }
 
+  if (*token->str == ';') {
+    token = token->next;
+    return new_node(ND_BLOCK, NULL, NULL);
+  }
+
   node = expr();
   if (!consume(";")) {
     error_at(token->str, "';' is needed");
