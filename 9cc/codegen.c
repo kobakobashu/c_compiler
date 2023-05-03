@@ -31,6 +31,17 @@ static void gen(Node *node) {
     printf(".L.end%d:\n", c);
     return;
   }
+  case ND_FOR: {
+    int c = count();
+    printf(".L.begin%d:\n", c);
+    gen(node->cond);
+    printf("  pop rax\n");
+    printf("  cmp rax, 0\n");
+    printf("  je .L.end%d\n", c);
+    gen(node->then);
+    printf("  jmp .L.begin%d\n", c);
+    printf(".L.end%d:\n", c);
+  }
   case ND_BLOCK:
     for (Node *n = node->body; n; n = n->next)
       gen(n);

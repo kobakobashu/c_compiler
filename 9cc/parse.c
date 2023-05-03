@@ -97,6 +97,12 @@ Token *tokenize() {
       continue;
     }
 
+    if (strncmp(p, "while", 5) == 0 && !is_alnum(p[5])) {
+      cur = new_token(TK_WHILE, cur, p, 5);
+      p += 5;
+      continue;
+    }
+
     if ('a' <= *p && *p <= 'z') {
       cur = new_token(TK_IDENT, cur, p, 0);
       char *q = p;
@@ -345,6 +351,20 @@ static Node *stmt() {
       token = token->next;
       node->els = stmt();
     }
+    return node;
+  }
+
+  if (token->kind == TK_WHILE) {
+    Node *node = new_node(ND_FOR, NULL, NULL);
+    token = token->next;
+    if (!consume("(")) {
+      error_at(token->str, "need '('");
+    }
+    node->cond = expr();
+    if (!consume(")")) {
+      error_at(token->str, "need ')'");
+    }
+    node->then = stmt();
     return node;
   }
 
