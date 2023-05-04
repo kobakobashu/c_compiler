@@ -103,6 +103,12 @@ Token *tokenize() {
       continue;
     }
 
+    if (strncmp(p, "for", 3) == 0 && !is_alnum(p[3])) {
+      cur = new_token(TK_FOR, cur, p, 3);
+      p += 3;
+      continue;
+    }
+
     if ('a' <= *p && *p <= 'z') {
       cur = new_token(TK_IDENT, cur, p, 0);
       char *q = p;
@@ -355,7 +361,7 @@ static Node *stmt() {
   }
 
   if (token->kind == TK_WHILE) {
-    Node *node = new_node(ND_FOR, NULL, NULL);
+    Node *node = new_node(ND_WHILE, NULL, NULL);
     token = token->next;
     if (!consume("(")) {
       error_at(token->str, "need '('");
@@ -364,6 +370,25 @@ static Node *stmt() {
     if (!consume(")")) {
       error_at(token->str, "need ')'");
     }
+    node->then = stmt();
+    return node;
+  }
+
+  if (token->kind == TK_FOR) {
+    Node *node = new_node(ND_FOR, NULL, NULL);
+    token = token->next;
+    if (!consume("(")) {
+      error_at(token->str, "need '('");
+    }
+    node->init = expr();
+    if (consume(";")) {
+      node->cond = expr();
+    }
+    consume(";");
+    if (!consume(")")) {
+      node->inc = expr();
+    }
+    consume(")");
     node->then = stmt();
     return node;
   }
