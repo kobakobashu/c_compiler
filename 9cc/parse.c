@@ -182,9 +182,24 @@ static bool at_eof() {
     return token->kind == TK_EOF;
 }
 
-static Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
+static bool equal(char *op) {
+  return memcmp(token->str, op, token->len) == 0 && op[token->len] == '\0';
+}
+
+static Node *new_node(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
+  return node;
+}
+
+static Node *new_unary(NodeKind kind, Node *expr) {
+  Node *node = new_node(kind);
+  node->lhs = expr;
+  return node;
+}
+
+static Node *new_binary(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = new_node(kind);
   node->lhs = lhs;
   node->rhs = rhs;
   return node;
@@ -214,8 +229,7 @@ static Node *primary() {
   }
   Token *tok = consume_ident();
   if (tok) {
-    Node *node = calloc(1, sizeof(Node));
-    node->kind = ND_LVAR;
+    Node *node = new_node(ND_LVAR);
 
     LVar *lvar = find_lvar(tok);
     if (lvar) {
@@ -243,7 +257,7 @@ static Node *unary() {
     return unary();
   }
   if (consume("-")) {
-    return new_node(ND_SUB, new_node_num(0), unary());
+    return new_binary(ND_SUB, new_node_num(0), unary());
   }
   return primary();
 }
@@ -253,9 +267,9 @@ static Node *mul() {
 
   for (;;) {
     if (consume("*")) {
-      node = new_node(ND_MUL, node, unary());
+      node = new_binary(ND_MUL, node, unary());
     } else if (consume("/")) {
-      node = new_node(ND_DIV, node, unary());
+      node = new_binary(ND_DIV, node, unary());
     } else {
       return node;
     }
@@ -267,9 +281,9 @@ static Node *add() {
 
   for (;;) {
     if (consume("+")) {
-      node = new_node(ND_ADD, node, mul());
+      node = new_binary(ND_ADD, node, mul());
     } else if (consume("-")) {
-      node = new_node(ND_SUB, node, mul());
+      node = new_binary(ND_SUB, node, mul());
     } else {
       return node;
     }
@@ -281,13 +295,13 @@ static Node *relational() {
 
   for (;;) {
     if (consume("<")) {
-      node = new_node(ND_LT, node, add());
+      node = new_binary(ND_LT, node, add());
     } else if (consume("<=")) {
-      node = new_node(ND_LE, node, add());
+      node = new_binary(ND_LE, node, add());
     } else if (consume(">")) {
-      node = new_node(ND_LT, add(), node);
+      node = new_binary(ND_LT, add(), node);
     } else if (consume(">=")) {
-      node = new_node(ND_LE, add(), node);
+      node = new_binary(ND_LE, add(), node);
     } else {
       return node;
     }
@@ -299,9 +313,9 @@ static Node *equality() {
 
   for (;;) {
     if (consume("==")) {
-      node = new_node(ND_EQ, node, relational());
+      node = new_binary(ND_EQ, node, relational());
     } else if (consume("!=")) {
-      node = new_node(ND_NE, node, relational());
+      node = new_binary(ND_NE, node, relational());
     } else {
       return node;
     }
@@ -311,7 +325,7 @@ static Node *equality() {
 static Node *assign() {
   Node *node = equality();
   if (consume("="))
-    node = new_node(ND_ASSIGN, node, assign());
+    node = new_binary(ND_ASSIGN, node, assign());
   return node;
 }
 
@@ -323,27 +337,25 @@ static Node *stmt() {
   Node *node;
 
   if (consume_return(TK_RETURN)) {
-    node = calloc(1, sizeof(Node));
-    node->kind = ND_RETURN;
-    node->lhs = expr();
+    node = new_unary(ND_RETURN, expr());
     if (!consume(";")) {
       error_at(token->str, "';' is needed");
     }
     return node;
   }
 
-  if (*token->str == '{') {
+  if (equal("{")) {
     token = token->next;
     return compound_stmt();
   }
 
-  if (*token->str == ';') {
+  if (equal(";")) {
     token = token->next;
-    return new_node(ND_BLOCK, NULL, NULL);
+    return new_node(ND_BLOCK);
   }
 
   if (token->kind == TK_IF) {
-    Node *node = new_node(ND_IF, NULL, NULL);
+    Node *node = new_node(ND_IF);
     token = token->next;
     if (!consume("(")) {
       error_at(token->str, "need '('");
@@ -361,7 +373,7 @@ static Node *stmt() {
   }
 
   if (token->kind == TK_WHILE) {
-    Node *node = new_node(ND_WHILE, NULL, NULL);
+    Node *node = new_node(ND_WHILE);
     token = token->next;
     if (!consume("(")) {
       error_at(token->str, "need '('");
@@ -375,7 +387,7 @@ static Node *stmt() {
   }
 
   if (token->kind == TK_FOR) {
-    Node *node = new_node(ND_FOR, NULL, NULL);
+    Node *node = new_node(ND_FOR);
     token = token->next;
     if (!consume("(")) {
       error_at(token->str, "need '('");
@@ -403,19 +415,19 @@ static Node *stmt() {
 static Node *compound_stmt() {
   Node head = {};
   Node *cur = &head;
-  while (*token->str != '}') {
+  while (!equal("}")) {
     cur->next = stmt();
     cur = cur->next;
   }
 
-  Node *node = new_node(ND_BLOCK, NULL, NULL);
+  Node *node = new_node(ND_BLOCK);
   node->body = head.next;
   token = token->next;
   return node;
 }
 
 Function *parse() {
-  if (*token->str != '{') {
+  if (!equal("{")) {
     error_at(token->str, "need '{'");
   }
   token = token->next;

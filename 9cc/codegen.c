@@ -143,10 +143,6 @@ void codegen(Function *prog) {
   printf("  mov rbp, rsp\n");
   printf("  sub rsp, 208\n");
 
-  // for (Node *n = prog->body; n; n = n->next) {
-  //   gen(n);
-  //   printf("  pop rax\n");
-  // }
   gen(prog->body);
 
   printf("  mov rsp, rbp\n");
