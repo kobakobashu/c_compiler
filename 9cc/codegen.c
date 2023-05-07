@@ -1,17 +1,23 @@
 #include "9cc.h"
 
+static void gen(Node *node);
+
 static int count(void) {
   static int i = 1;
   return i++;
 }
 
-void gen_lval(Node *node) {
-  if (node->kind != ND_LVAR)
-    error("lval is not variable");
-
-  printf("  mov rax, rbp\n");
-  printf("  sub rax, %d\n", node->offset);
-  printf("  push rax\n");
+static void gen_lval(Node *node) {
+  switch (node->kind) {
+  case ND_LVAR:
+    printf("  mov rax, rbp\n");
+    printf("  sub rax, %d\n", node->offset);
+    printf("  push rax\n");
+    return;
+  case ND_DEREF:
+    gen(node->lhs);
+    return;
+  }
 }
 
 static void gen(Node *node) {
@@ -85,6 +91,15 @@ static void gen(Node *node) {
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
     printf("  ret\n");
+    return;
+  case ND_ADDR:
+    gen_lval(node->lhs);
+    return;
+  case ND_DEREF:
+    gen(node->lhs);
+    printf("  pop rax\n");
+    printf("  mov rax, [rax]\n");
+    printf("  push rax\n");
     return;
   }
 

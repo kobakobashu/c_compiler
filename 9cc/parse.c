@@ -66,7 +66,7 @@ Token *tokenize() {
       continue;
     }
 
-    if (strchr("+-*/()<>=;{}", *p)) {
+    if (strchr("+-*/()<>=;{}&", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
@@ -256,7 +256,10 @@ static Node *primary() {
   return new_node_num(expect_number());
 }
 
-// unary = ("+" | "-")? primary
+// unary = "+"? primary
+//       | "-"? primary
+//       | "*" unary
+//       | "&" unary
 
 static Node *unary() {
   if (consume("+")) {
@@ -264,6 +267,12 @@ static Node *unary() {
   }
   if (consume("-")) {
     return new_binary(ND_SUB, new_node_num(0), unary());
+  }
+  if (consume("&")) {
+    return new_unary(ND_ADDR, unary());
+  }
+  if (consume("*")) {
+    return new_unary(ND_DEREF, unary());
   }
   return primary();
 }
