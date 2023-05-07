@@ -221,6 +221,10 @@ LVar *find_lvar(Token *tok) {
   return NULL;
 }
 
+// primary = num 
+//         | ident
+//         | "(" expr ")"
+
 static Node *primary() {
   if (consume("(")) {
     Node *node = expr();
@@ -252,6 +256,8 @@ static Node *primary() {
   return new_node_num(expect_number());
 }
 
+// unary = ("+" | "-")? primary
+
 static Node *unary() {
   if (consume("+")) {
     return unary();
@@ -261,6 +267,8 @@ static Node *unary() {
   }
   return primary();
 }
+
+// mul = unary ("*" unary | "/" unary)*
 
 static Node *mul() {
   Node *node = unary();
@@ -276,6 +284,8 @@ static Node *mul() {
   }
 }
 
+// add = mul ("+" mul | "-" mul)*
+
 static Node *add() {
   Node *node = mul();
 
@@ -289,6 +299,8 @@ static Node *add() {
     }
   }
 }
+
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 
 static Node *relational() {
   Node *node = add();
@@ -308,6 +320,8 @@ static Node *relational() {
   }
 }
 
+// equality = relational ("==" relational | "!=" relational)*
+
 static Node *equality() {
   Node *node = relational();
 
@@ -322,6 +336,8 @@ static Node *equality() {
   }
 }
 
+// assign = equality ("=" assign)?
+
 static Node *assign() {
   Node *node = equality();
   if (consume("="))
@@ -329,9 +345,18 @@ static Node *assign() {
   return node;
 }
 
+// expr = assign
+
 static Node *expr() {
   return assign();
 }
+
+// stmt = expr ";"
+//      | "return" expr ";"
+//      | "{" stmt* "}"
+//      | "if" "(" expr ")" stmt ("else" stmt)?
+//      | "while" "(" expr ")" stmt
+//      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 
 static Node *stmt() {
   Node *node;
@@ -411,6 +436,8 @@ static Node *stmt() {
   }
   return node;
 }
+
+// compound_stmt = stmt*
 
 static Node *compound_stmt() {
   Node head = {};
