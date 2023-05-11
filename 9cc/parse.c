@@ -221,6 +221,56 @@ LVar *find_lvar(Token *tok) {
   return NULL;
 }
 
+static Node *new_add(Node *lhs, Node *rhs) {
+  add_type(lhs);
+  add_type(rhs);
+
+  // num + num
+  if (is_integer(lhs->ty) && is_integer(rhs->ty))
+    return new_binary(ND_ADD, lhs, rhs);
+
+  if (lhs->ty->base && rhs->ty->base)
+    error_at(token->str, "invalid operands");
+
+  // Canonicalize `num + ptr` to `ptr + num`.
+  if (!lhs->ty->base && rhs->ty->base) {
+    Node *tmp = lhs;
+    lhs = rhs;
+    rhs = tmp;
+  }
+
+  // ptr + num
+  rhs = new_binary(ND_MUL, rhs, new_node_num(8));
+  return new_binary(ND_ADD, lhs, rhs);
+}
+
+static Node *new_sub(Node *lhs, Node *rhs) {
+  add_type(lhs);
+  add_type(rhs);
+
+  // num - num
+  if (is_integer(lhs->ty) && is_integer(rhs->ty))
+    return new_binary(ND_SUB, lhs, rhs);
+
+  // ptr - num
+  if (lhs->ty->base && is_integer(rhs->ty)) {
+    rhs = new_binary(ND_MUL, rhs, new_node_num(8));
+    add_type(rhs);
+    Node *node = new_binary(ND_SUB, lhs, rhs);
+    node->ty = lhs->ty;
+    return node;
+  }
+
+  // ptr - ptr, which returns how many elements are between the two.
+  if (lhs->ty->base && rhs->ty->base) {
+    Node *node = new_binary(ND_SUB, lhs, rhs);
+    node->ty = ty_int;
+    return new_binary(ND_DIV, node, new_node_num(8));
+  }
+
+  error_at(token->str, "invalid operands");
+}
+
 // primary = num 
 //         | ident
 //         | "(" expr ")"
@@ -298,9 +348,9 @@ static Node *add() {
 
   for (;;) {
     if (consume("+")) {
-      node = new_binary(ND_ADD, node, mul());
+      node = new_add(node, mul());
     } else if (consume("-")) {
-      node = new_binary(ND_SUB, node, mul());
+      node = new_sub(node, mul());
     } else {
       return node;
     }
@@ -452,6 +502,7 @@ static Node *compound_stmt() {
   while (!equal("}")) {
     cur->next = stmt();
     cur = cur->next;
+    add_type(cur);
   }
 
   Node *node = new_node(ND_BLOCK);

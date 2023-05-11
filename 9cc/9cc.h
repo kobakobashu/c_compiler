@@ -10,6 +10,8 @@
 
 extern char *user_input;
 
+typedef struct Type Type;
+
 //
 // tokenizer
 //
@@ -78,6 +80,7 @@ typedef struct Node Node;
 struct Node {
   NodeKind kind;
   Node *next;
+  Type *ty;
   Node *lhs;
   Node *rhs;
   Node *body;
@@ -106,5 +109,24 @@ extern Node *code[100];
 //
 
 void codegen(Function *prog);
+
+//
+// type.c
+//
+
+typedef enum {
+  TY_INT,
+  TY_PTR,
+} TypeKind;
+
+struct Type {
+  TypeKind kind;
+  Type *base;
+};
+
+bool is_integer(Type *ty);
+void add_type(Node *node);
+
+extern Type *ty_int;
 
 #endif
