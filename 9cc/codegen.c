@@ -11,7 +11,7 @@ static void gen_lval(Node *node) {
   switch (node->kind) {
   case ND_LVAR:
     printf("  mov rax, rbp\n");
-    printf("  sub rax, %d\n", node->offset);
+    printf("  sub rax, %d\n", node->var->offset);
     printf("  push rax\n");
     return;
   case ND_DEREF:
@@ -148,7 +148,17 @@ static void gen(Node *node) {
   printf("  push rax\n");
 }
 
+static void assign_lvar_offset(Function *prog) {
+  int max_off = prog->locals->offset;
+  for (LVar *var = prog->locals; var; var = var->next) {
+    var->offset = max_off - var->offset;
+  }
+}
+
 void codegen(Function *prog) {
+  if (prog->locals) {
+    assign_lvar_offset(prog);
+  }
   printf(".intel_syntax noprefix\n");
   printf(".globl main\n");
   printf("main:\n");

@@ -87,7 +87,7 @@ struct Node {
   Node *inc;
   Node *init;
   int val;
-  int offset;
+  LVar *var;
 };
 
 

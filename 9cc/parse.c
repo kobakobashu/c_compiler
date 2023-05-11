@@ -236,9 +236,7 @@ static Node *primary() {
     Node *node = new_node(ND_LVAR);
 
     LVar *lvar = find_lvar(tok);
-    if (lvar) {
-      node->offset = lvar->offset;
-    } else {
+    if (!lvar) {
       lvar = calloc(1, sizeof(LVar));
       lvar->next = locals;
       lvar->name = tok->str;
@@ -248,9 +246,9 @@ static Node *primary() {
       } else {
         lvar->offset = 0;
       }
-      node->offset = lvar->offset;
       locals = lvar;
     }
+    node->var = lvar;
     return node;
   }
   return new_node_num(expect_number());
