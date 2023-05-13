@@ -109,6 +109,12 @@ Token *tokenize() {
       continue;
     }
 
+    if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3])) {
+      cur = new_token(TK_INT, cur, p, 3);
+      p += 3;
+      continue;
+    }
+
     if ('a' <= *p && *p <= 'z') {
       cur = new_token(TK_IDENT, cur, p, 0);
       char *q = p;
@@ -271,11 +277,12 @@ static Node *new_sub(Node *lhs, Node *rhs) {
   error_at(token->str, "invalid operands");
 }
 
-static LVar *new_lvar(LVar *lvar, Token *tok) {
+static LVar *new_lvar(LVar *lvar, Token *tok, Type *ty) {
   lvar = calloc(1, sizeof(LVar));
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
+  lvar->ty = ty;
   if (locals) {
     lvar->offset = locals->offset + 8;
   } else {
@@ -301,7 +308,7 @@ static Node *primary() {
 
     LVar *lvar = find_lvar(tok);
     if (!lvar) {
-      lvar = new_lvar(lvar, tok);
+      error_at(token->str, "undefined variable");
     }
     node->var = lvar;
     return node;
@@ -499,13 +506,60 @@ static Node *stmt() {
   return node;
 }
 
-// compound_stmt = stmt*
+// declspec = "int"
+
+static Type *declspec() {
+  if (!equal("int")) {
+    error("invalit declaration");
+  }
+  token = token->next;
+  return ty_int;
+}
+
+// declarator = "*"* ident
+
+static Type *declarator(Type *ty) {
+  while (consume("*")) {
+    ty = pointer_to(ty);
+  }
+
+  if (token->kind != TK_IDENT) {
+    error_at(token->str, "expected a variable name");
+  }
+
+  ty->name = token;
+  return ty;
+}
+
+// declaration = declspec declarator ";"
+
+static Node *declaration() {
+  Type *basety = declspec();
+
+  Type *ty = declarator(basety);
+  LVar *lvar;
+  lvar = new_lvar(lvar, token, ty);
+  Node *node = new_node(ND_BLOCK);
+  if (consume_ident()) {
+    error_at(token->str, "need identification");
+  }
+  if (consume(";")) {
+    error_at(token->str, "need ;");
+  }
+  return node;
+}
+
+// compound_stmt = (declaration | stmt)* "}"
 
 static Node *compound_stmt() {
   Node head = {};
   Node *cur = &head;
   while (!equal("}")) {
-    cur->next = stmt();
+    if (token->kind == TK_INT) {
+      cur->next = declaration();
+    } else {
+      cur->next = stmt();
+    }
     cur = cur->next;
     add_type(cur);
   }

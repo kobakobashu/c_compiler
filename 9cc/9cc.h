@@ -26,6 +26,7 @@ typedef enum {
     TK_ELSE,
     TK_WHILE,
     TK_FOR,
+    TK_INT,
 } TokenKind;
 
 typedef struct Token Token;
@@ -53,6 +54,7 @@ struct LVar {
   char *name;
   int len;
   int offset;
+  Type *ty;
 };
 
 typedef enum {
@@ -122,10 +124,12 @@ typedef enum {
 struct Type {
   TypeKind kind;
   Type *base;
+  Token *name;
 };
 
 bool is_integer(Type *ty);
 void add_type(Node *node);
+Type *pointer_to(Type *base);
 
 extern Type *ty_int;
 
