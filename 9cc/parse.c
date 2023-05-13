@@ -271,6 +271,20 @@ static Node *new_sub(Node *lhs, Node *rhs) {
   error_at(token->str, "invalid operands");
 }
 
+static LVar *new_lvar(LVar *lvar, Token *tok) {
+  lvar = calloc(1, sizeof(LVar));
+  lvar->next = locals;
+  lvar->name = tok->str;
+  lvar->len = tok->len;
+  if (locals) {
+    lvar->offset = locals->offset + 8;
+  } else {
+    lvar->offset = 0;
+  }
+  locals = lvar;
+  return lvar;
+}
+
 // primary = num 
 //         | ident
 //         | "(" expr ")"
@@ -287,16 +301,7 @@ static Node *primary() {
 
     LVar *lvar = find_lvar(tok);
     if (!lvar) {
-      lvar = calloc(1, sizeof(LVar));
-      lvar->next = locals;
-      lvar->name = tok->str;
-      lvar->len = tok->len;
-      if (locals) {
-        lvar->offset = locals->offset + 8;
-      } else {
-        lvar->offset = 0;
-      }
-      locals = lvar;
+      lvar = new_lvar(lvar, tok);
     }
     node->var = lvar;
     return node;
