@@ -13,6 +13,12 @@ extern char *user_input;
 typedef struct Type Type;
 
 //
+// util.c
+//
+
+char* strndup(const char* source, size_t length);
+
+//
 // tokenizer
 //
 
@@ -76,6 +82,7 @@ typedef enum {
     ND_FOR, // for
     ND_ADDR, // &
     ND_DEREF, // *
+    ND_FUNCALL, // function call
 } NodeKind;
 
 typedef struct Node Node;
@@ -91,6 +98,7 @@ struct Node {
   Node *els;
   Node *inc;
   Node *init;
+  char *funcname;
   int val;
   LVar *var;
 };

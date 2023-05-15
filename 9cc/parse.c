@@ -293,7 +293,7 @@ static LVar *new_lvar(LVar *lvar, Token *tok, Type *ty) {
 }
 
 // primary = num 
-//         | ident
+//         | ident ("(" ")")?
 //         | "(" expr ")"
 
 static Node *primary() {
@@ -304,6 +304,12 @@ static Node *primary() {
   }
   Token *tok = consume_ident();
   if (tok) {
+    if (consume("(")) {
+      Node *node = new_node(ND_FUNCALL);
+      node->funcname = strndup(tok->str, tok->len);
+      expect(")");
+      return node;
+    }
     Node *node = new_node(ND_LVAR);
 
     LVar *lvar = find_lvar(tok);
@@ -540,10 +546,10 @@ static Node *declaration() {
   LVar *lvar;
   lvar = new_lvar(lvar, token, ty);
   Node *node = new_node(ND_BLOCK);
-  if (consume_ident()) {
+  if (!consume_ident()) {
     error_at(token->str, "need identification");
   }
-  if (consume(";")) {
+  if (!consume(";")) {
     error_at(token->str, "need ;");
   }
   return node;
