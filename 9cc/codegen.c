@@ -2,9 +2,19 @@
 
 static void gen(Node *node);
 
+static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+
 static int count(void) {
   static int i = 1;
   return i++;
+}
+
+static void push(void) {
+  printf("  push rax\n");
+}
+
+static void pop(char *arg) {
+  printf("  pop %s\n", arg);
 }
 
 static void gen_lval(Node *node) {
@@ -85,10 +95,20 @@ static void gen(Node *node) {
     printf("  mov [rax], rdi\n");
     printf("  push rdi\n");
     return;
-  case ND_FUNCALL:
+  case ND_FUNCALL: {
+    int nargs = 0;
+    for (Node *arg = node->args; arg; arg = arg->next) {
+      gen(arg);
+      nargs++;
+    }
+
+    for (int i = nargs - 1; i >= 0; i--)
+      pop(argreg[i]);
+
     printf("  call %s\n", node->funcname);
     printf("  push rax\n");
     return;
+  }
   case ND_RETURN:
     gen(node->lhs);
     printf("  pop rax\n");

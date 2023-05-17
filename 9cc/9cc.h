@@ -101,6 +101,7 @@ struct Node {
   char *funcname;
   int val;
   LVar *var;
+  Node *args;
 };
 
 

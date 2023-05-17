@@ -66,7 +66,7 @@ Token *tokenize() {
       continue;
     }
 
-    if (strchr("+-*/()<>=;{}&", *p)) {
+    if (strchr("+-*/()<>=;{}&,", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
@@ -138,8 +138,8 @@ Token *tokenize() {
 
 LVar *locals;
 
+static Node *assign();
 static Node *expr();
-
 static Node *compound_stmt();
 
 static bool consume(char *op) {
@@ -292,8 +292,22 @@ static LVar *new_lvar(LVar *lvar, Token *tok, Type *ty) {
   return lvar;
 }
 
+// func-params = primary ("," primary)*
+
+static Node *func_params(Node *node) {
+  Node head = {};
+  Node *cur = &head;
+  while (!consume(")")) {
+    Node *node = assign();
+    cur->next = node;
+    cur = cur->next;
+    consume(",");
+  }
+  return head.next;
+}
+
 // primary = num 
-//         | ident ("(" ")")?
+//         | ident ("(" func-params? ")")?
 //         | "(" expr ")"
 
 static Node *primary() {
@@ -307,7 +321,13 @@ static Node *primary() {
     if (consume("(")) {
       Node *node = new_node(ND_FUNCALL);
       node->funcname = strndup(tok->str, tok->len);
-      expect(")");
+      // func with no arg
+      if (consume(")")) {
+        return node;
+      }
+      // func with args
+      Node *args = func_params(node);
+      node->args = args;
       return node;
     }
     Node *node = new_node(ND_LVAR);
