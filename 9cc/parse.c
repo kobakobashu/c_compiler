@@ -192,6 +192,10 @@ static bool equal(char *op) {
   return memcmp(token->str, op, token->len) == 0 && op[token->len] == '\0';
 }
 
+static bool equal_token(Token *tok, char *op) {
+  return memcmp(tok->str, op, tok->len) == 0;
+}
+
 static Node *new_node(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
@@ -542,7 +546,16 @@ static Type *declspec() {
   return ty_int;
 }
 
-// declarator = "*"* ident
+static Type *type_suffix(Type *ty) {
+  consume_ident();
+  if (consume("(")) {
+    expect(")");
+    return func_type(ty);
+  }
+  return ty;
+}
+
+// declarator = "*"* ident type-suffix
 
 static Type *declarator(Type *ty) {
   while (consume("*")) {
@@ -552,8 +565,11 @@ static Type *declarator(Type *ty) {
   if (token->kind != TK_IDENT) {
     error_at(token->str, "expected a variable name");
   }
-
-  ty->name = token;
+  Token *tmp = token;
+  if (equal_token(token->next, "(")) {
+    ty = type_suffix(ty);
+  }
+  ty->name = tmp;
   return ty;
 }
 
@@ -596,14 +612,33 @@ static Node *compound_stmt() {
   return node;
 }
 
-Function *parse() {
+// function = declspec declarator "{" compound_stmt* "}"
+Function *function() {
+  Type *basety = declspec();
+  Type *ty = declarator(basety);
   if (!equal("{")) {
     error_at(token->str, "need '{'");
   }
   token = token->next;
+  locals = NULL;
 
-  Function *prog = calloc(1, sizeof(Function));
-  prog->body = compound_stmt();
-  prog->locals = locals;
-  return prog;
+  Function *fn = calloc(1, sizeof(Function));
+  fn->name = strndup(ty->name->str, ty->name->len);
+  fn->body = compound_stmt();
+  fn->locals = locals;
+  return fn;
+}
+
+// code = function*
+
+Function *parse() {
+  Function head = {};
+  Function *cur = &head;
+
+  while (token->kind != TK_EOF) {
+    cur->next = function();
+    cur = cur->next;
+  }
+
+  return head.next;
 }

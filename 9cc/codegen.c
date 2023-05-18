@@ -3,6 +3,7 @@
 static void gen(Node *node);
 
 static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static Function *current_fn;
 
 static int count(void) {
   static int i = 1;
@@ -118,7 +119,7 @@ static void gen(Node *node) {
   case ND_RETURN:
     gen(node->lhs);
     printf("  pop rax\n");
-    printf("  jmp .L.return\n");
+    printf("  jmp .L.return.%s\n", current_fn->name);
     return;
   case ND_ADDR:
     gen_lval(node->lhs);
@@ -177,30 +178,36 @@ static void gen(Node *node) {
 }
 
 static void assign_lvar_offset(Function *prog) {
-  int max_off = prog->locals->offset;
-  for (LVar *var = prog->locals; var; var = var->next) {
-    var->offset = max_off - var->offset;
+  for (Function *fn = prog; fn; fn = fn->next) {
+    int max_off = fn->locals->offset;
+    for (LVar *var = fn->locals; var; var = var->next) {
+      var->offset = max_off - var->offset;
+    }
+    fn->stack_size = align_to(max_off, 16);
   }
-  prog->stack_size = align_to(max_off, 16);
 }
 
 void codegen(Function *prog) {
   if (prog->locals) {
     assign_lvar_offset(prog);
   }
-  printf(".intel_syntax noprefix\n");
-  printf(".globl main\n");
-  printf("main:\n");
 
-  // prologue
-  printf("  push rbp\n");
-  printf("  mov rbp, rsp\n");
-  printf("  sub rsp, %d\n", prog->stack_size);
+  for (Function *fn = prog; fn; fn = fn->next) {
+    printf(".intel_syntax noprefix\n");
+    printf(".globl %s\n", fn->name);
+    printf("%s:\n", fn->name);
+    current_fn = fn;
 
-  gen(prog->body);
+    // prologue
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, %d\n", fn->stack_size);
 
-  printf(".L.return:\n");
-  printf("  mov rsp, rbp\n");
-  printf("  pop rbp\n");
-  printf("  ret\n");
+    gen(prog->body);
+
+    printf(".L.return.%s:\n", fn->name);
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
+  }
 }
