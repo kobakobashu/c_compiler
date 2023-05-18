@@ -17,6 +17,12 @@ static void pop(char *arg) {
   printf("  pop %s\n", arg);
 }
 
+// Round up `n` to the nearest multiple of `align`. For instance,
+// align_to(5, 8) returns 8 and align_to(11, 8) returns 16.
+static int align_to(int n, int align) {
+  return (n + align - 1) / align * align;
+}
+
 static void gen_lval(Node *node) {
   switch (node->kind) {
   case ND_LVAR:
@@ -112,9 +118,7 @@ static void gen(Node *node) {
   case ND_RETURN:
     gen(node->lhs);
     printf("  pop rax\n");
-    printf("  mov rsp, rbp\n");
-    printf("  pop rbp\n");
-    printf("  ret\n");
+    printf("  jmp .L.return\n");
     return;
   case ND_ADDR:
     gen_lval(node->lhs);
@@ -177,6 +181,7 @@ static void assign_lvar_offset(Function *prog) {
   for (LVar *var = prog->locals; var; var = var->next) {
     var->offset = max_off - var->offset;
   }
+  prog->stack_size = align_to(max_off, 16);
 }
 
 void codegen(Function *prog) {
@@ -190,10 +195,11 @@ void codegen(Function *prog) {
   // prologue
   printf("  push rbp\n");
   printf("  mov rbp, rsp\n");
-  printf("  sub rsp, 208\n");
+  printf("  sub rsp, %d\n", prog->stack_size);
 
   gen(prog->body);
 
+  printf(".L.return:\n");
   printf("  mov rsp, rbp\n");
   printf("  pop rbp\n");
   printf("  ret\n");

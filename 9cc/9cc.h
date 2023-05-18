@@ -109,6 +109,7 @@ typedef struct Function Function;
 struct Function {
   Node *body;
   LVar *locals;
+  int stack_size;
 };
 
 Function *parse();
