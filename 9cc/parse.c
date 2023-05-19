@@ -546,8 +546,9 @@ static Type *declspec() {
   return ty_int;
 }
 
+// type-suffix = ("("")")?
+
 static Type *type_suffix(Type *ty) {
-  consume_ident();
   if (consume("(")) {
     expect(")");
     return func_type(ty);
@@ -567,6 +568,7 @@ static Type *declarator(Type *ty) {
   }
   Token *tmp = token;
   if (equal_token(token->next, "(")) {
+    consume_ident();
     ty = type_suffix(ty);
   }
   ty->name = tmp;
