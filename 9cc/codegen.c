@@ -203,7 +203,7 @@ void codegen(Function *prog) {
     printf("  mov rbp, rsp\n");
     printf("  sub rsp, %d\n", fn->stack_size);
 
-    gen(prog->body);
+    gen(fn->body);
 
     printf(".L.return.%s:\n", fn->name);
     printf("  mov rsp, rbp\n");

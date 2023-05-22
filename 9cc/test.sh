@@ -102,4 +102,7 @@ assert 136 'int main() { return add6(1,2,add6(3,add6(4,5,6,7,8,9),10,11,12,13),1
 
 assert 32 'int ret32() { return 32; } int main() { return ret32(); } '
 
+assert 32 'int main() { return ret32(); } int ret32() { return 32; }'
+assert 48 'int main() { return ret48(); } int ret32() { return 32; } int ret48() { return 48; }'
+
 echo OK
