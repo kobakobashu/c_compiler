@@ -141,6 +141,7 @@ LVar *locals;
 static Node *assign();
 static Node *expr();
 static Node *compound_stmt();
+static Type *declarator(Type *ty);
 
 static bool consume(char *op) {
   if (token->kind != TK_RESERVED ||
@@ -296,9 +297,9 @@ static LVar *new_lvar(LVar *lvar, Token *tok, Type *ty) {
   return lvar;
 }
 
-// func-params = primary ("," primary)*
+// func-call = primary ("," primary)*
 
-static Node *func_params(Node *node) {
+static Node *func_call(Node *node) {
   Node head = {};
   Node *cur = &head;
   while (!consume(")")) {
@@ -311,7 +312,7 @@ static Node *func_params(Node *node) {
 }
 
 // primary = num 
-//         | ident ("(" func-params? ")")?
+//         | ident ("(" func-call? ")")?
 //         | "(" expr ")"
 
 static Node *primary() {
@@ -330,7 +331,7 @@ static Node *primary() {
         return node;
       }
       // func with args
-      Node *args = func_params(node);
+      Node *args = func_call(node);
       node->args = args;
       return node;
     }
@@ -546,13 +547,29 @@ static Type *declspec() {
   return ty_int;
 }
 
-// type-suffix = ("("")")?
+// func-params = param ("," param)*
+// param       = declspec declarator
+
+static Type *func_params() {
+  Type head = {};
+  Type *cur = &head;
+  while (!consume(")")) {
+    Type *basety = declspec();
+    Type *ty = declarator(basety);
+    cur->next = copy_type(ty);
+    cur = cur->next;
+    token = token->next;
+    consume(",");
+  }
+  return head.next;
+}
+
+// type-suffix = ("(" func-params? ")")?
 
 static Type *type_suffix(Type *ty) {
-  if (consume("(")) {
-    expect(")");
-    return func_type(ty);
-  }
+  expect("(");
+  ty = func_type(ty);
+  ty->params = func_params();
   return ty;
 }
 
@@ -614,6 +631,14 @@ static Node *compound_stmt() {
   return node;
 }
 
+static void create_param_lvars(Type *param) {
+  if (param) {
+    create_param_lvars(param->next);
+    LVar *lvar;
+    new_lvar(lvar, param->name, param);
+  }
+}
+
 // function = declspec declarator "{" compound_stmt* "}"
 Function *function() {
   Type *basety = declspec();
@@ -626,6 +651,8 @@ Function *function() {
 
   Function *fn = calloc(1, sizeof(Function));
   fn->name = strndup(ty->name->str, ty->name->len);
+  create_param_lvars(ty->params);
+  fn->params = locals;
   fn->body = compound_stmt();
   fn->locals = locals;
   return fn;

@@ -67,3 +67,9 @@ Type *func_type(Type *return_ty) {
   ty->return_ty = return_ty;
   return ty;
 }
+
+Type *copy_type(Type *ty) {
+  Type *ret = calloc(1, sizeof(Type));
+  *ret = *ty;
+  return ret;
+}

@@ -28,7 +28,7 @@ static void gen_lval(Node *node) {
   switch (node->kind) {
   case ND_LVAR:
     printf("  mov rax, rbp\n");
-    printf("  sub rax, %d\n", node->var->offset);
+    printf("  add rax, %d\n", node->var->offset);
     printf("  push rax\n");
     return;
   case ND_DEREF:
@@ -179,18 +179,19 @@ static void gen(Node *node) {
 
 static void assign_lvar_offset(Function *prog) {
   for (Function *fn = prog; fn; fn = fn->next) {
-    int max_off = fn->locals->offset;
-    for (LVar *var = fn->locals; var; var = var->next) {
-      var->offset = max_off - var->offset;
+    if (fn->locals) {
+      int offset = 0;
+      for (LVar *var = fn->locals; var; var = var->next) {
+        offset += 8;
+        var->offset = -offset;
+      }
+      fn->stack_size = align_to(offset, 16);
     }
-    fn->stack_size = align_to(max_off, 16);
   }
 }
 
 void codegen(Function *prog) {
-  if (prog->locals) {
-    assign_lvar_offset(prog);
-  }
+  assign_lvar_offset(prog);
 
   for (Function *fn = prog; fn; fn = fn->next) {
     printf(".intel_syntax noprefix\n");
@@ -202,6 +203,12 @@ void codegen(Function *prog) {
     printf("  push rbp\n");
     printf("  mov rbp, rsp\n");
     printf("  sub rsp, %d\n", fn->stack_size);
+
+    // Save passed-by-register arguments to the stack
+    int i = 0;
+    for (LVar *var = fn->params; var; var = var->next) {
+      printf("  mov %d[rbp], %s\n", var->offset, argreg[i++]);
+    }
 
     gen(fn->body);
 
