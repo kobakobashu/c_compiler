@@ -66,7 +66,7 @@ Token *tokenize() {
       continue;
     }
 
-    if (strchr("+-*/()<>=;{}&,", *p)) {
+    if (strchr("+-*/()<>=;{}&,[]", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
@@ -232,6 +232,15 @@ LVar *find_lvar(Token *tok) {
   return NULL;
 }
 
+int get_number() {
+  if (token->kind != TK_NUM) {
+    error_at(token->str, "expected a number");
+  }
+  int sz = token->val;
+  token = token->next;
+  return sz;
+}
+
 static Node *new_add(Node *lhs, Node *rhs) {
   add_type(lhs);
   add_type(rhs);
@@ -251,7 +260,7 @@ static Node *new_add(Node *lhs, Node *rhs) {
   }
 
   // ptr + num
-  rhs = new_binary(ND_MUL, rhs, new_node_num(8));
+  rhs = new_binary(ND_MUL, rhs, new_node_num(lhs->ty->base->size));
   return new_binary(ND_ADD, lhs, rhs);
 }
 
@@ -265,7 +274,7 @@ static Node *new_sub(Node *lhs, Node *rhs) {
 
   // ptr - num
   if (lhs->ty->base && is_integer(rhs->ty)) {
-    rhs = new_binary(ND_MUL, rhs, new_node_num(8));
+    rhs = new_binary(ND_MUL, rhs, new_node_num(lhs->ty->base->size));
     add_type(rhs);
     Node *node = new_binary(ND_SUB, lhs, rhs);
     node->ty = lhs->ty;
@@ -276,7 +285,7 @@ static Node *new_sub(Node *lhs, Node *rhs) {
   if (lhs->ty->base && rhs->ty->base) {
     Node *node = new_binary(ND_SUB, lhs, rhs);
     node->ty = ty_int;
-    return new_binary(ND_DIV, node, new_node_num(8));
+    return new_binary(ND_DIV, node, new_node_num(lhs->ty->base->size));
   }
 
   error_at(token->str, "invalid operands");
@@ -558,18 +567,27 @@ static Type *func_params() {
     Type *ty = declarator(basety);
     cur->next = copy_type(ty);
     cur = cur->next;
-    token = token->next;
     consume(",");
   }
   return head.next;
 }
 
-// type-suffix = ("(" func-params? ")")?
+// type-suffix = ("(" func-params? ")")
+//             = "[" num "]"
+//             = ε
 
 static Type *type_suffix(Type *ty) {
-  expect("(");
-  ty = func_type(ty);
-  ty->params = func_params();
+  if (consume("(")) {
+    ty = func_type(ty);
+    ty->params = func_params();
+    return ty;
+  }
+  if (consume("[")) {
+    int sz = get_number();
+
+    expect("]");
+    return array_of(ty, sz);
+  }
   return ty;
 }
 
@@ -584,9 +602,11 @@ static Type *declarator(Type *ty) {
     error_at(token->str, "expected a variable name");
   }
   Token *tmp = token;
-  if (equal_token(token->next, "(")) {
+  if (equal_token(token->next, "(") || equal_token(token->next, "[")) {
     consume_ident();
     ty = type_suffix(ty);
+  } else {
+    consume_ident();
   }
   ty->name = tmp;
   return ty;
@@ -596,14 +616,10 @@ static Type *declarator(Type *ty) {
 
 static Node *declaration() {
   Type *basety = declspec();
-
   Type *ty = declarator(basety);
   LVar *lvar;
-  lvar = new_lvar(lvar, token, ty);
+  lvar = new_lvar(lvar, ty->name, ty);
   Node *node = new_node(ND_BLOCK);
-  if (!consume_ident()) {
-    error_at(token->str, "need identification");
-  }
   if (!consume(";")) {
     error_at(token->str, "need ;");
   }

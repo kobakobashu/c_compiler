@@ -37,6 +37,31 @@ static void gen_lval(Node *node) {
   }
 }
 
+// Load a value from where %rax is pointing to.
+static void load(Type *ty) {
+  if (ty->kind == TY_ARRAY) {
+    // If it is an array, do not attempt to load a value to the
+    // register because in general we can't load an entire array to a
+    // register. As a result, the result of an evaluation of an array
+    // becomes not the array itself but the address of the array.
+    // This is where "array is automatically converted to a pointer to
+    // the first element of the array in C" occurs.
+    return;
+  }
+
+  printf("  pop rax\n");
+  printf("  mov rax, [rax]\n");
+  printf("  push rax\n");
+}
+
+// Store %rax to an address that the stack top is pointing to.
+static void store(void) {
+  printf("  pop rdi\n");
+  printf("  pop rax\n");
+  printf("  mov [rax], rdi\n");
+  printf("  push rdi\n");
+}
+
 static void gen(Node *node) {
   switch (node->kind) {
   case ND_IF: {
@@ -89,18 +114,13 @@ static void gen(Node *node) {
     return;
   case ND_LVAR:
     gen_lval(node);
-    printf("  pop rax\n");
-    printf("  mov rax, [rax]\n");
-    printf("  push rax\n");
+    load(node->ty);
     return;
   case ND_ASSIGN:
     gen_lval(node->lhs);
     gen(node->rhs);
 
-    printf("  pop rdi\n");
-    printf("  pop rax\n");
-    printf("  mov [rax], rdi\n");
-    printf("  push rdi\n");
+    store();
     return;
   case ND_FUNCALL: {
     int nargs = 0;
@@ -126,9 +146,7 @@ static void gen(Node *node) {
     return;
   case ND_DEREF:
     gen(node->lhs);
-    printf("  pop rax\n");
-    printf("  mov rax, [rax]\n");
-    printf("  push rax\n");
+    load(node->ty);
     return;
   }
 
@@ -182,7 +200,7 @@ static void assign_lvar_offset(Function *prog) {
     if (fn->locals) {
       int offset = 0;
       for (LVar *var = fn->locals; var; var = var->next) {
-        offset += 8;
+        offset += var->ty->size;
         var->offset = -offset;
       }
       fn->stack_size = align_to(offset, 16);
