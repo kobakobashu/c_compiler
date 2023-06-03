@@ -573,7 +573,7 @@ static Type *func_params() {
 }
 
 // type-suffix = ("(" func-params? ")")
-//             = "[" num "]"
+//             = "[" num "]" type-suffix
 //             = ε
 
 static Type *type_suffix(Type *ty) {
@@ -586,6 +586,7 @@ static Type *type_suffix(Type *ty) {
     int sz = get_number();
 
     expect("]");
+    ty = type_suffix(ty);
     return array_of(ty, sz);
   }
   return ty;
