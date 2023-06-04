@@ -356,10 +356,25 @@ static Node *primary() {
   return new_node_num(expect_number());
 }
 
-// unary = "+"? primary
-//       | "-"? primary
+// postfix = primary ("[" expr "]")*
+
+static Node *postfix() {
+  Node *node = primary();
+  while (equal("[")) {
+    // x[y] is short for *(x+y)
+    token = token->next;
+    Node *idx = expr();
+    expect("]");
+    node = new_unary(ND_DEREF, new_add(node, idx));
+  }
+  return node;
+}
+
+// unary = "+"? unary
+//       | "-"? unary
 //       | "*" unary
 //       | "&" unary
+//       | postfix
 
 static Node *unary() {
   if (consume("+")) {
@@ -374,7 +389,7 @@ static Node *unary() {
   if (consume("*")) {
     return new_unary(ND_DEREF, unary());
   }
-  return primary();
+  return postfix();
 }
 
 // mul = unary ("*" unary | "/" unary)*
