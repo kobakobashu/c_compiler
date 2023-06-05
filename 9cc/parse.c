@@ -115,6 +115,12 @@ Token *tokenize() {
       continue;
     }
 
+    if (strncmp(p, "sizeof", 6) == 0 && !is_alnum(p[6])) {
+      cur = new_token(TK_SIZEOF, cur, p, 6);
+      p += 6;
+      continue;
+    }
+
     if ('a' <= *p && *p <= 'z') {
       cur = new_token(TK_IDENT, cur, p, 0);
       char *q = p;
@@ -375,6 +381,7 @@ static Node *postfix() {
 //       | "*" unary
 //       | "&" unary
 //       | postfix
+//       | "sizeof" unary
 
 static Node *unary() {
   if (consume("+")) {
@@ -388,6 +395,12 @@ static Node *unary() {
   }
   if (consume("*")) {
     return new_unary(ND_DEREF, unary());
+  }
+  if (token->kind == TK_SIZEOF) {
+    token = token->next;
+    Node *node = unary();
+    add_type(node);
+    return new_node_num(node->ty->size);
   }
   return postfix();
 }
