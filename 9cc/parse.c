@@ -142,7 +142,7 @@ Token *tokenize() {
 // parser
 //
 
-LVar *locals;
+Obj *locals;
 
 static Node *assign();
 static Node *expr();
@@ -229,8 +229,8 @@ static Node *new_node_num(int val) {
   return node;
 }
 
-LVar *find_lvar(Token *tok) {
-  for (LVar *var = locals; var; var = var->next) {
+Obj *find_lvar(Token *tok) {
+  for (Obj *var = locals; var; var = var->next) {
     if (var->len == tok->len && !memcmp(var->name, tok->str, var->len)) {
       return var;
     }
@@ -297,8 +297,8 @@ static Node *new_sub(Node *lhs, Node *rhs) {
   error_at(token->str, "invalid operands");
 }
 
-static LVar *new_lvar(LVar *lvar, Token *tok, Type *ty) {
-  lvar = calloc(1, sizeof(LVar));
+static Obj *new_lvar(Obj *lvar, Token *tok, Type *ty) {
+  lvar = calloc(1, sizeof(Obj));
   lvar->next = locals;
   lvar->name = tok->str;
   lvar->len = tok->len;
@@ -352,7 +352,7 @@ static Node *primary() {
     }
     Node *node = new_node(ND_LVAR);
 
-    LVar *lvar = find_lvar(tok);
+    Obj *lvar = find_lvar(tok);
     if (!lvar) {
       error_at(token->str, "undefined variable");
     }
@@ -646,7 +646,7 @@ static Type *declarator(Type *ty) {
 static Node *declaration() {
   Type *basety = declspec();
   Type *ty = declarator(basety);
-  LVar *lvar;
+  Obj *lvar;
   lvar = new_lvar(lvar, ty->name, ty);
   Node *node = new_node(ND_BLOCK);
   if (!consume(";")) {
@@ -679,13 +679,13 @@ static Node *compound_stmt() {
 static void create_param_lvars(Type *param) {
   if (param) {
     create_param_lvars(param->next);
-    LVar *lvar;
+    Obj *lvar;
     new_lvar(lvar, param->name, param);
   }
 }
 
 // function = declspec declarator "{" compound_stmt* "}"
-Function *function() {
+Obj *function() {
   Type *basety = declspec();
   Type *ty = declarator(basety);
   if (!equal("{")) {
@@ -694,7 +694,7 @@ Function *function() {
   token = token->next;
   locals = NULL;
 
-  Function *fn = calloc(1, sizeof(Function));
+  Obj *fn = calloc(1, sizeof(Obj));
   fn->name = strndup(ty->name->str, ty->name->len);
   create_param_lvars(ty->params);
   fn->params = locals;
@@ -705,9 +705,9 @@ Function *function() {
 
 // code = function*
 
-Function *parse() {
-  Function head = {};
-  Function *cur = &head;
+Obj *parse() {
+  Obj head = {};
+  Obj *cur = &head;
 
   while (token->kind != TK_EOF) {
     cur->next = function();

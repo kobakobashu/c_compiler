@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize();
-  Function *prog = parse();
+  Obj *prog = parse();
   codegen(prog);
   return 0;
 }

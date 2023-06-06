@@ -3,7 +3,7 @@
 static void gen(Node *node);
 
 static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-static Function *current_fn;
+static Obj *current_fn;
 
 static int count(void) {
   static int i = 1;
@@ -195,11 +195,11 @@ static void gen(Node *node) {
   printf("  push rax\n");
 }
 
-static void assign_lvar_offset(Function *prog) {
-  for (Function *fn = prog; fn; fn = fn->next) {
+static void assign_lvar_offset(Obj *prog) {
+  for (Obj *fn = prog; fn; fn = fn->next) {
     if (fn->locals) {
       int offset = 0;
-      for (LVar *var = fn->locals; var; var = var->next) {
+      for (Obj *var = fn->locals; var; var = var->next) {
         offset += var->ty->size;
         var->offset = -offset;
       }
@@ -208,10 +208,10 @@ static void assign_lvar_offset(Function *prog) {
   }
 }
 
-void codegen(Function *prog) {
+void codegen(Obj *prog) {
   assign_lvar_offset(prog);
 
-  for (Function *fn = prog; fn; fn = fn->next) {
+  for (Obj *fn = prog; fn; fn = fn->next) {
     printf(".intel_syntax noprefix\n");
     printf(".globl %s\n", fn->name);
     printf("%s:\n", fn->name);
@@ -224,7 +224,7 @@ void codegen(Function *prog) {
 
     // Save passed-by-register arguments to the stack
     int i = 0;
-    for (LVar *var = fn->params; var; var = var->next) {
+    for (Obj *var = fn->params; var; var = var->next) {
       printf("  mov %d[rbp], %s\n", var->offset, argreg[i++]);
     }
 
