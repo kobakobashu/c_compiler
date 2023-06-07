@@ -142,7 +142,8 @@ Token *tokenize() {
 // parser
 //
 
-Obj *locals;
+static Obj *locals;
+static Obj *globals;
 
 static Node *assign();
 static Node *expr();
@@ -297,19 +298,37 @@ static Node *new_sub(Node *lhs, Node *rhs) {
   error_at(token->str, "invalid operands");
 }
 
-static Obj *new_lvar(Obj *lvar, Token *tok, Type *ty) {
-  lvar = calloc(1, sizeof(Obj));
-  lvar->next = locals;
-  lvar->name = tok->str;
-  lvar->len = tok->len;
-  lvar->ty = ty;
+static Obj *new_var(Token *tok, Type *ty) {
+  Obj *var = calloc(1, sizeof(Obj));
+  var->name = tok->str;
+  var->len = tok->len;
+  var->ty = ty;
+  return var;
+}
+
+static Obj *new_lvar(Token *tok, Type *ty) {
+  Obj *var = new_var(tok, ty);
+  var->is_local = true;
+  var->next = locals;
   if (locals) {
-    lvar->offset = locals->offset + 8;
+    var->offset = locals->offset + 8;
   } else {
-    lvar->offset = 0;
+    var->offset = 0;
   }
-  locals = lvar;
-  return lvar;
+  locals = var;
+  return var;
+}
+
+static Obj *new_gvar(Token *tok, Type *ty) {
+  Obj *var = new_var(tok, ty);
+  var->next = globals;
+  if (globals) {
+    var->offset = globals->offset + 8;
+  } else {
+    var->offset = 0;
+  }
+  globals = var;
+  return var;
 }
 
 // func-call = primary ("," primary)*
@@ -646,8 +665,7 @@ static Type *declarator(Type *ty) {
 static Node *declaration() {
   Type *basety = declspec();
   Type *ty = declarator(basety);
-  Obj *lvar;
-  lvar = new_lvar(lvar, ty->name, ty);
+  Obj *lvar = new_lvar(ty->name, ty);
   Node *node = new_node(ND_BLOCK);
   if (!consume(";")) {
     error_at(token->str, "need ;");
@@ -680,7 +698,7 @@ static void create_param_lvars(Type *param) {
   if (param) {
     create_param_lvars(param->next);
     Obj *lvar;
-    new_lvar(lvar, param->name, param);
+    new_lvar(param->name, param);
   }
 }
 
@@ -688,13 +706,14 @@ static void create_param_lvars(Type *param) {
 Obj *function() {
   Type *basety = declspec();
   Type *ty = declarator(basety);
+  Obj *fn = new_gvar(ty->name, ty);
+  fn->is_function = true;
   if (!equal("{")) {
     error_at(token->str, "need '{'");
   }
   token = token->next;
   locals = NULL;
 
-  Obj *fn = calloc(1, sizeof(Obj));
   fn->name = strndup(ty->name->str, ty->name->len);
   create_param_lvars(ty->params);
   fn->params = locals;
@@ -706,13 +725,11 @@ Obj *function() {
 // code = function*
 
 Obj *parse() {
-  Obj head = {};
-  Obj *cur = &head;
+  globals = NULL;
 
   while (token->kind != TK_EOF) {
-    cur->next = function();
-    cur = cur->next;
+    function();
   }
 
-  return head.next;
+  return globals;
 }

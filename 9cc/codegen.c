@@ -197,6 +197,10 @@ static void gen(Node *node) {
 
 static void assign_lvar_offset(Obj *prog) {
   for (Obj *fn = prog; fn; fn = fn->next) {
+    if (!fn->is_function) {
+      continue;
+    }
+
     if (fn->locals) {
       int offset = 0;
       for (Obj *var = fn->locals; var; var = var->next) {
@@ -212,8 +216,12 @@ void codegen(Obj *prog) {
   assign_lvar_offset(prog);
 
   for (Obj *fn = prog; fn; fn = fn->next) {
+    if (!fn->is_function) {
+      continue;
+    }
     printf(".intel_syntax noprefix\n");
     printf(".globl %s\n", fn->name);
+    printf(".text\n");
     printf("%s:\n", fn->name);
     current_fn = fn;
 

@@ -108,6 +108,8 @@ struct Obj {
   int len;
   Type *ty;
   int offset;
+  bool is_local;
+  bool is_function;
 };
 
 Obj *parse();
