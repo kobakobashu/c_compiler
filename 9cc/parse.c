@@ -230,8 +230,13 @@ static Node *new_node_num(int val) {
   return node;
 }
 
-Obj *find_lvar(Token *tok) {
+Obj *find_var(Token *tok) {
   for (Obj *var = locals; var; var = var->next) {
+    if (var->len == tok->len && !memcmp(var->name, tok->str, var->len)) {
+      return var;
+    }
+  }
+  for (Obj *var = globals; var; var = var->next) {
     if (var->len == tok->len && !memcmp(var->name, tok->str, var->len)) {
       return var;
     }
@@ -331,6 +336,29 @@ static Obj *new_gvar(Token *tok, Type *ty) {
   return var;
 }
 
+static void global_variable(Type *basety) {
+  bool first = true;
+
+  while (!consume(";")) {
+    if (!first) {
+      consume(",");
+    }
+    first = false;
+
+    Type *ty = declarator(basety);
+    new_gvar(ty->name, ty);
+  }
+  return;
+}
+
+static bool is_function() {
+  Token *dummy = token;
+  Type *base;
+  Type *ty = declarator(base);
+  token = dummy;
+  return ty->kind == TY_FUNC;
+}
+
 // func-call = primary ("," primary)*
 
 static Node *func_call(Node *node) {
@@ -369,9 +397,8 @@ static Node *primary() {
       node->args = args;
       return node;
     }
-    Node *node = new_node(ND_LVAR);
-
-    Obj *lvar = find_lvar(tok);
+    Node *node = new_node(ND_VAR);
+    Obj *lvar = find_var(tok);
     if (!lvar) {
       error_at(token->str, "undefined variable");
     }
@@ -703,8 +730,7 @@ static void create_param_lvars(Type *param) {
 }
 
 // function = declspec declarator "{" compound_stmt* "}"
-Obj *function() {
-  Type *basety = declspec();
+Obj *function(Type *basety) {
   Type *ty = declarator(basety);
   Obj *fn = new_gvar(ty->name, ty);
   fn->is_function = true;
@@ -728,7 +754,13 @@ Obj *parse() {
   globals = NULL;
 
   while (token->kind != TK_EOF) {
-    function();
+    Type *basety = declspec();
+    if (is_function()) {
+      function(basety);
+      continue;
+    }
+    
+    global_variable(basety);
   }
 
   return globals;

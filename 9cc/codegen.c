@@ -24,12 +24,17 @@ static int align_to(int n, int align) {
   return (n + align - 1) / align * align;
 }
 
-static void gen_lval(Node *node) {
+static void gen_val(Node *node) {
   switch (node->kind) {
-  case ND_LVAR:
-    printf("  mov rax, rbp\n");
-    printf("  add rax, %d\n", node->var->offset);
-    printf("  push rax\n");
+  case ND_VAR:
+    if (node->var->is_local) {
+      printf("  mov rax, rbp\n");
+      printf("  add rax, %d\n", node->var->offset);
+      printf("  push rax\n");
+    } else {
+      printf("  lea rax, [rip + %s]\n", strndup(node->var->name, node->var->len));
+      printf("  push rax\n");
+    }
     return;
   case ND_DEREF:
     gen(node->lhs);
@@ -112,12 +117,12 @@ static void gen(Node *node) {
   case ND_NUM:
     printf("  push %d\n", node->val);
     return;
-  case ND_LVAR:
-    gen_lval(node);
+  case ND_VAR:
+    gen_val(node);
     load(node->ty);
     return;
   case ND_ASSIGN:
-    gen_lval(node->lhs);
+    gen_val(node->lhs);
     gen(node->rhs);
 
     store();
@@ -142,7 +147,7 @@ static void gen(Node *node) {
     printf("  jmp .L.return.%s\n", current_fn->name);
     return;
   case ND_ADDR:
-    gen_lval(node->lhs);
+    gen_val(node->lhs);
     return;
   case ND_DEREF:
     gen(node->lhs);
@@ -212,9 +217,19 @@ static void assign_lvar_offset(Obj *prog) {
   }
 }
 
-void codegen(Obj *prog) {
-  assign_lvar_offset(prog);
+static void emit_data(Obj *prog) {
+  for (Obj *var = prog; var; var = var->next) {
+    if (var->is_function)
+      continue;
 
+    printf("  .data\n");
+    printf("  .globl %s\n", strndup(var->name, var->len));
+    printf("%s:\n", strndup(var->name, var->len));
+    printf("  .zero %d\n", var->ty->size);
+  }
+}
+
+static void emit_text(Obj *prog) {
   for (Obj *fn = prog; fn; fn = fn->next) {
     if (!fn->is_function) {
       continue;
@@ -243,4 +258,10 @@ void codegen(Obj *prog) {
     printf("  pop rbp\n");
     printf("  ret\n");
   }
+}
+
+void codegen(Obj *prog) {
+  assign_lvar_offset(prog);
+  emit_data(prog);
+  emit_text(prog);
 }
