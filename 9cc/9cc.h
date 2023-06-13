@@ -33,6 +33,7 @@ typedef enum {
     TK_WHILE,
     TK_FOR,
     TK_INT,
+    TK_CHAR,
     TK_SIZEOF,
 } TokenKind;
 
@@ -127,6 +128,7 @@ void codegen(Obj *prog);
 //
 
 typedef enum {
+  TY_CHAR,
   TY_INT,
   TY_PTR,
   TY_FUNC,
@@ -152,5 +154,6 @@ Type *copy_type(Type *ty);
 Type *array_of(Type *base, int len);
 
 extern Type *ty_int;
+extern Type *ty_char;
 
 #endif

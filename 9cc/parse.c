@@ -115,6 +115,12 @@ Token *tokenize() {
       continue;
     }
 
+    if (strncmp(p, "char", 4) == 0 && !is_alnum(p[4])) {
+      cur = new_token(TK_CHAR, cur, p, 4);
+      p += 4;
+      continue;
+    }
+
     if (strncmp(p, "sizeof", 6) == 0 && !is_alnum(p[6])) {
       cur = new_token(TK_SIZEOF, cur, p, 6);
       p += 6;
@@ -357,6 +363,10 @@ static bool is_function() {
   Type *ty = declarator(base);
   token = dummy;
   return ty->kind == TY_FUNC;
+}
+
+static bool is_typename(void) {
+  return token->kind == TK_INT || token->kind == TK_CHAR;
 }
 
 // func-call = primary ("," primary)*
@@ -620,14 +630,18 @@ static Node *stmt() {
   return node;
 }
 
-// declspec = "int"
+// declspec = "char" | "int"
 
 static Type *declspec() {
-  if (!equal("int")) {
-    error("invalit declaration");
+  if (equal("int")) {
+    token = token->next;
+    return ty_int;
   }
-  token = token->next;
-  return ty_int;
+  if (equal("char")) {
+    token = token->next;
+    return ty_char;
+  }
+  error("invalit declaration");
 }
 
 // func-params = param ("," param)*
@@ -706,7 +720,7 @@ static Node *compound_stmt() {
   Node head = {};
   Node *cur = &head;
   while (!equal("}")) {
-    if (token->kind == TK_INT) {
+    if (is_typename()) {
       cur->next = declaration();
     } else {
       cur->next = stmt();
