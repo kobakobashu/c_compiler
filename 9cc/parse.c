@@ -47,6 +47,22 @@ int is_alnum(char c) {
          (c == '_');
 }
 
+static Token *read_string_literal(Token *cur, char *start) {
+  char *p = start + 1;
+  for (p; *p != '"'; p++) {
+    if (*p == '\n' || *p == '\0')
+      error("unclosed string literal");
+  }
+  Token *tok = new_token(
+                        TK_STR, 
+                        cur, 
+                        strndup(start + 1, p - start - 1), 
+                        p - start + 1
+  );
+  tok->ty = array_of(ty_char, p - start);
+  return tok;
+}
+
 Token *tokenize() {
   char *p = user_input;
   Token head;
@@ -68,6 +84,12 @@ Token *tokenize() {
 
     if (strchr("+-*/()<>=;{}&,[]", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
+      continue;
+    }
+
+    if (strchr("\"", *p)) {
+      cur = read_string_literal(cur, p);
+      p += cur->len;
       continue;
     }
 
@@ -342,6 +364,29 @@ static Obj *new_gvar(Token *tok, Type *ty) {
   return var;
 }
 
+// ToDo: Unify new_var_ and new_var, and remove new_var_.
+
+static Obj *new_var_(char *name, Type *ty) {
+  Obj *var = calloc(1, sizeof(Obj));
+  var->name = name;
+  var->ty = ty;
+  return var;
+}
+
+// ToDo: Unify new_gvar_ and new_gvar, and remove new_gvar_.
+
+static Obj *new_gvar_(char *name, Type *ty) {
+  Obj *var = new_var_(name, ty);
+  var->next = globals;
+  if (globals) {
+    var->offset = globals->offset + 8;
+  } else {
+    var->offset = 0;
+  }
+  globals = var;
+  return var;
+}
+
 static void global_variable(Type *basety) {
   bool first = true;
 
@@ -369,6 +414,24 @@ static bool is_typename(void) {
   return token->kind == TK_INT || token->kind == TK_CHAR;
 }
 
+static char *new_unique_name(void) {
+  static int id = 0;
+  char *buf = calloc(1, 20);
+  sprintf(buf, ".L..%d", id++);
+  return buf;
+}
+
+static Obj *new_anon_gvar(Type *ty) {
+  return new_gvar_(new_unique_name(), ty);
+}
+
+static Obj *new_string_literal(char *p, Type *ty) {
+  Obj *var = new_anon_gvar(ty);
+  var->init_data = p;
+  var->len = strlen(var->name);
+  return var;
+}
+
 // func-call = primary ("," primary)*
 
 static Node *func_call(Node *node) {
@@ -384,6 +447,7 @@ static Node *func_call(Node *node) {
 }
 
 // primary = num 
+//         | str
 //         | ident ("(" func-call? ")")?
 //         | "(" expr ")"
 
@@ -413,6 +477,13 @@ static Node *primary() {
       error_at(token->str, "undefined variable");
     }
     node->var = lvar;
+    return node;
+  }
+  if (token->kind == TK_STR) {
+    Obj *var = new_string_literal(token->str, token->ty);
+    Node *node = new_node(ND_VAR);
+    node->var = var;
+    token = token->next;
     return node;
   }
   return new_node_num(expect_number());

@@ -35,6 +35,7 @@ typedef enum {
     TK_INT,
     TK_CHAR,
     TK_SIZEOF,
+    TK_STR,
 } TokenKind;
 
 typedef struct Token Token;
@@ -44,6 +45,7 @@ struct Token {
     int val;
     char *str;
     int len;
+    Type *ty;
 };
 
 void error_at(char *loc, char *fmt, ...);
@@ -111,6 +113,7 @@ struct Obj {
   int offset;
   bool is_local;
   bool is_function;
+  char *init_data;
 };
 
 Obj *parse();
