@@ -260,12 +260,12 @@ static Node *new_node_num(int val) {
 
 Obj *find_var(Token *tok) {
   for (Obj *var = locals; var; var = var->next) {
-    if (var->len == tok->len && !memcmp(var->name, tok->str, var->len)) {
+    if (strlen(var->name) == tok->len && !memcmp(var->name, tok->str, strlen(var->name))) {
       return var;
     }
   }
   for (Obj *var = globals; var; var = var->next) {
-    if (var->len == tok->len && !memcmp(var->name, tok->str, var->len)) {
+    if (strlen(var->name) == tok->len && !memcmp(var->name, tok->str, strlen(var->name))) {
       return var;
     }
   }
@@ -331,16 +331,15 @@ static Node *new_sub(Node *lhs, Node *rhs) {
   error_at(token->str, "invalid operands");
 }
 
-static Obj *new_var(Token *tok, Type *ty) {
+static Obj *new_var(char *name, Type *ty) {
   Obj *var = calloc(1, sizeof(Obj));
-  var->name = tok->str;
-  var->len = tok->len;
+  var->name = name;
   var->ty = ty;
   return var;
 }
 
-static Obj *new_lvar(Token *tok, Type *ty) {
-  Obj *var = new_var(tok, ty);
+static Obj *new_lvar(char *name, Type *ty) {
+  Obj *var = new_var(name, ty);
   var->is_local = true;
   var->next = locals;
   if (locals) {
@@ -352,8 +351,8 @@ static Obj *new_lvar(Token *tok, Type *ty) {
   return var;
 }
 
-static Obj *new_gvar(Token *tok, Type *ty) {
-  Obj *var = new_var(tok, ty);
+static Obj *new_gvar(char *name, Type *ty) {
+  Obj *var = new_var(name, ty);
   var->next = globals;
   if (globals) {
     var->offset = globals->offset + 8;
@@ -364,27 +363,8 @@ static Obj *new_gvar(Token *tok, Type *ty) {
   return var;
 }
 
-// ToDo: Unify new_var_ and new_var, and remove new_var_.
-
-static Obj *new_var_(char *name, Type *ty) {
-  Obj *var = calloc(1, sizeof(Obj));
-  var->name = name;
-  var->ty = ty;
-  return var;
-}
-
-// ToDo: Unify new_gvar_ and new_gvar, and remove new_gvar_.
-
-static Obj *new_gvar_(char *name, Type *ty) {
-  Obj *var = new_var_(name, ty);
-  var->next = globals;
-  if (globals) {
-    var->offset = globals->offset + 8;
-  } else {
-    var->offset = 0;
-  }
-  globals = var;
-  return var;
+static char *get_identify(Token *tok) {
+  return strndup(tok->str, tok->len);
 }
 
 static void global_variable(Type *basety) {
@@ -397,7 +377,8 @@ static void global_variable(Type *basety) {
     first = false;
 
     Type *ty = declarator(basety);
-    new_gvar(ty->name, ty);
+    char *name = get_identify(ty->name);
+    new_gvar(name, ty);
   }
   return;
 }
@@ -422,13 +403,12 @@ static char *new_unique_name(void) {
 }
 
 static Obj *new_anon_gvar(Type *ty) {
-  return new_gvar_(new_unique_name(), ty);
+  return new_gvar(new_unique_name(), ty);
 }
 
 static Obj *new_string_literal(char *p, Type *ty) {
   Obj *var = new_anon_gvar(ty);
   var->init_data = p;
-  var->len = strlen(var->name);
   return var;
 }
 
@@ -461,7 +441,7 @@ static Node *primary() {
   if (tok) {
     if (consume("(")) {
       Node *node = new_node(ND_FUNCALL);
-      node->funcname = strndup(tok->str, tok->len);
+      node->funcname = get_identify(tok);
       // func with no arg
       if (consume(")")) {
         return node;
@@ -777,7 +757,7 @@ static Type *declarator(Type *ty) {
 static Node *declaration() {
   Type *basety = declspec();
   Type *ty = declarator(basety);
-  Obj *lvar = new_lvar(ty->name, ty);
+  Obj *lvar = new_lvar(get_identify(ty->name), ty);
   Node *node = new_node(ND_BLOCK);
   if (!consume(";")) {
     error_at(token->str, "need ;");
@@ -809,15 +789,15 @@ static Node *compound_stmt() {
 static void create_param_lvars(Type *param) {
   if (param) {
     create_param_lvars(param->next);
-    Obj *lvar;
-    new_lvar(param->name, param);
+    new_lvar(get_identify(param->name), param);
   }
 }
 
 // function = declspec declarator "{" compound_stmt* "}"
+
 Obj *function(Type *basety) {
   Type *ty = declarator(basety);
-  Obj *fn = new_gvar(ty->name, ty);
+  Obj *fn = new_gvar(get_identify(ty->name), ty);
   fn->is_function = true;
   if (!equal("{")) {
     error_at(token->str, "need '{'");
@@ -825,7 +805,7 @@ Obj *function(Type *basety) {
   token = token->next;
   locals = NULL;
 
-  fn->name = strndup(ty->name->str, ty->name->len);
+  fn->name = get_identify(ty->name);
   create_param_lvars(ty->params);
   fn->params = locals;
   fn->body = compound_stmt();

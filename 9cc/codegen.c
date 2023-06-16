@@ -33,7 +33,7 @@ static void gen_val(Node *node) {
       printf("  add rax, %d\n", node->var->offset);
       printf("  push rax\n");
     } else {
-      printf("  lea rax, [rip + %s]\n", strndup(node->var->name, node->var->len));
+      printf("  lea rax, [rip + %s]\n", node->var->name);
       printf("  push rax\n");
     }
     return;
@@ -231,8 +231,8 @@ static void emit_data(Obj *prog) {
       continue;
 
     printf("  .data\n");
-    printf("  .globl %s\n", strndup(var->name, var->len));
-    printf("%s:\n", strndup(var->name, var->len));
+    printf("  .globl %s\n", var->name);
+    printf("%s:\n", var->name);
     if (var->init_data) {
       for (int i = 0; i < var->ty->size; i++)
         printf("  .byte %d\n", var->init_data[i]);

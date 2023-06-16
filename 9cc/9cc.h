@@ -108,7 +108,6 @@ struct Obj {
   Node *body;
   Obj *locals;
   int stack_size;
-  int len;
   Type *ty;
   int offset;
   bool is_local;
