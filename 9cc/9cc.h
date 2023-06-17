@@ -13,6 +13,12 @@ extern char *user_input;
 typedef struct Type Type;
 
 //
+// strings.c
+//
+
+char *format(char *fmt, ...);
+
+//
 // util.c
 //
 
