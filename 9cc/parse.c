@@ -47,7 +47,21 @@ int is_alnum(char c) {
          (c == '_');
 }
 
-static int read_escaped_char(char *p) {
+static int read_escaped_char(char **new_pos, char *p) {
+  if ('0' <= *p && *p <= '7') {
+    // Read an octal number.
+    int c = *p++ - '0';
+    if ('0' <= *p && *p <= '7') {
+      c = (c << 3) + (*p++ - '0');
+      if ('0' <= *p && *p <= '7')
+        c = (c << 3) + (*p++ - '0');
+    }
+    *new_pos = p;
+    return c;
+  }
+
+  *new_pos = p + 1;
+
   // Escape sequences are defined using themselves here. E.g.
   // '\n' is implemented using '\n'. This tautological definition
   // works because the compiler that compiles our compiler knows
@@ -88,8 +102,7 @@ static Token *read_string_literal(Token *cur, char *start) {
 
   for (p = start + 1; p < end;) {
     if (*p == '\\') {
-      buf[len++] = read_escaped_char(p + 1);
-      p += 2;
+      buf[len++] = read_escaped_char(&p, p + 1);
     } else {
       buf[len++] = *p++;
     }
