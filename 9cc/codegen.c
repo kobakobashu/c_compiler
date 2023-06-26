@@ -135,6 +135,10 @@ static void gen(Node *node) {
 
     store(node->ty);
     return;
+  case ND_STMT_EXPR:
+    for (Node *n = node->body; n; n = n->next)
+      gen(n);
+    return;
   case ND_FUNCALL: {
     int nargs = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {

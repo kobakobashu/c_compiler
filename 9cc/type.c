@@ -76,6 +76,17 @@ void add_type(Node *node) {
       error("invalid pointer dereference");
     node->ty = node->lhs->ty->base;
     return;
+  case ND_STMT_EXPR:
+    if (node->body) {
+      Node *stmt = node->body;
+      while (stmt->next)
+        stmt = stmt->next;
+      // ToDo: add ND_STMT_EXPR for statement expression
+      node->ty = stmt->ty;
+      return;
+    }
+    error("statement expression returning void is not supported");
+    return;
   }
 }
 

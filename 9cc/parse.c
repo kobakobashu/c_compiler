@@ -20,11 +20,11 @@ void error_at(char *loc, char *fmt, ...) {
 }
 
 void error(char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    exit(1);
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
 }
 
 static Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
@@ -499,8 +499,17 @@ static Node *func_call(Node *node) {
 //         | str
 //         | ident ("(" func-call? ")")?
 //         | "(" expr ")"
+//         | "(" "{" stmt+ "}" ")"
 
 static Node *primary() {
+  if (equal("(") && equal_token(token->next, "{")) {
+    // This is a GNU statement expresssion.
+    Node *node = new_node(ND_STMT_EXPR);
+    token = token->next->next;
+    node->body = compound_stmt()->body;
+    expect(")");
+    return node;
+  }
   if (consume("(")) {
     Node *node = expr();
     expect(")");
