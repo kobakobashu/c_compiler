@@ -2,6 +2,7 @@
 #define CC_H
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -17,12 +18,6 @@ typedef struct Type Type;
 //
 
 char *format(char *fmt, ...);
-
-//
-// util.c
-//
-
-char* strndup(const char* source, size_t length);
 
 //
 // tokenizer
@@ -56,7 +51,7 @@ struct Token {
 
 void error_at(char *loc, char *fmt, ...);
 void error(char *fmt, ...);
-Token *tokenize();
+Token *tokenize_file();
 
 extern Token *token;
 

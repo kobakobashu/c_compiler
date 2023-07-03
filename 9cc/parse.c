@@ -1,5 +1,8 @@
 #include "9cc.h"
 
+// Input filename
+static char *current_filename;
+
 //
 // tokenizer
 //
@@ -134,8 +137,9 @@ static Token *read_string_literal(Token *cur, char *start) {
   return tok;
 }
 
-Token *tokenize() {
-  char *p = user_input;
+static Token *tokenize(char *filename) {
+  current_filename = user_input;
+  char *p = filename;
   Token head;
   head.next = NULL;
   Token *cur = &head;
@@ -235,6 +239,45 @@ Token *tokenize() {
 
   new_token(TK_EOF, cur, p, 0);
   return head.next;
+}
+
+static char *read_file() {
+  FILE *fp;
+
+  char *path = user_input;
+  if (strcmp(path, "-") == 0) {
+    fp = stdin;
+  } else {
+    fp = fopen(path, "r");
+    if (!fp)
+      error("cannot open %s: %s", path, strerror(errno));
+  }
+
+  char *buf;
+  size_t buflen;
+  FILE *out = open_memstream(&buf, &buflen);
+
+  for (;;) {
+    char buf2[4096];
+    int n = fread(buf2, 1, sizeof(buf2), fp);
+    if (n == 0)
+      break;
+    fwrite(buf2, 1, n, out);
+  }
+
+  if (fp != stdin)
+    fclose(fp);
+
+  fflush(out);
+  if (buflen == 0 || buf[buflen - 1] != '\n')
+    fputc('\n', out);
+  fputc('\0', out);
+  fclose(out);
+  return buf;
+}
+
+Token *tokenize_file() {
+  return tokenize(read_file());
 }
 
 //
@@ -770,7 +813,7 @@ static Type *declspec() {
     token = token->next;
     return ty_char;
   }
-  error("invalit declaration");
+  error("invalid declaration");
 }
 
 // func-params = param ("," param)*

@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
   }
 
   user_input = argv[1];
-  token = tokenize();
+  token = tokenize_file();
   Obj *prog = parse();
   codegen(prog);
   return 0;
