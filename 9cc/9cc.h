@@ -125,7 +125,7 @@ extern Node *code[100];
 // codegen.c
 //
 
-void codegen(Obj *prog);
+void codegen(Obj *prog, FILE *out);
 
 //
 // type.c

@@ -9,6 +9,7 @@ $(OBJS): 9cc.h
 
 test: 9cc
 	./test.sh
+	./test-driver.sh
 
 clean:
 	rm -f 9cc *.o *~ tmp*
