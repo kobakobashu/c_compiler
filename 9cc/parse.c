@@ -2,6 +2,7 @@
 
 // Input filename
 static char *current_filename;
+char *filename;
 
 //
 // tokenizer
@@ -13,8 +14,8 @@ void error_at(char *loc, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
 
-  int pos = loc - user_input;
-  fprintf(stderr, "%s\n", user_input);
+  int pos = loc - filename;
+  fprintf(stderr, "%s\n", filename);
   fprintf(stderr, "%*s", pos, " ");
   fprintf(stderr, "^ ");
   vfprintf(stderr, fmt, ap);
@@ -277,7 +278,8 @@ static char *read_file() {
 }
 
 Token *tokenize_file() {
-  return tokenize(read_file());
+  filename = read_file();
+  return tokenize(filename);
 }
 
 //
