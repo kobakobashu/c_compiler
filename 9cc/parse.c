@@ -151,6 +151,21 @@ static Token *tokenize(char *filename) {
       continue;
     }
 
+    if (strncmp(p, "//", 2) == 0) {
+      p += 2;
+      while (*p != '\n')
+        p++;
+      continue;
+    }
+
+    if (strncmp(p, "/*", 2) == 0) {
+      char *q = strstr(p + 2, "*/");
+      if (!q)
+        error_at(p, "comment out is not closed error: need */");
+      p = q + 2;
+      continue;
+    }
+
     if (startswith(p, "==") || startswith(p, "!=") ||
         startswith(p, "<=") || startswith(p, ">=")) {
       cur = new_token(TK_RESERVED, cur, p, 2);
