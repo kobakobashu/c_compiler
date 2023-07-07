@@ -301,8 +301,25 @@ Token *tokenize_file() {
 // parser
 //
 
+// Scope for local or global variables.
+typedef struct VarScope VarScope;
+struct VarScope {
+  VarScope *next;
+  char *name;
+  Obj *var;
+};
+
+// Represents a block scope.
+typedef struct Scope Scope;
+struct Scope {
+  Scope *next;
+  VarScope *vars;
+};
+
 static Obj *locals;
 static Obj *globals;
+
+static Scope *scope = &(Scope){};
 
 static Node *assign();
 static Node *expr();
@@ -389,17 +406,22 @@ static Node *new_node_num(int val) {
   return node;
 }
 
-Obj *find_var(Token *tok) {
-  for (Obj *var = locals; var; var = var->next) {
-    if (strlen(var->name) == tok->len && !memcmp(var->name, tok->str, strlen(var->name))) {
-      return var;
-    }
-  }
-  for (Obj *var = globals; var; var = var->next) {
-    if (strlen(var->name) == tok->len && !memcmp(var->name, tok->str, strlen(var->name))) {
-      return var;
-    }
-  }
+static void enter_scope(void) {
+  Scope *sc = calloc(1, sizeof(Scope));
+  sc->next = scope;
+  scope = sc;
+}
+
+static void leave_scope(void) {
+  scope = scope->next;
+}
+
+// Find a variable by name.
+static Obj *find_var(Token *tok) {
+  for (Scope *sc = scope; sc; sc = sc->next)
+    for (VarScope *sc2 = sc->vars; sc2; sc2 = sc2->next)
+      if (equal_token(tok, sc2->name))
+        return sc2->var;
   return NULL;
 }
 
@@ -462,10 +484,20 @@ static Node *new_sub(Node *lhs, Node *rhs) {
   error_at(token->str, "invalid operands");
 }
 
+static VarScope *push_scope(char *name, Obj *var) {
+  VarScope *sc = calloc(1, sizeof(VarScope));
+  sc->name = name;
+  sc->var = var;
+  sc->next = scope->vars;
+  scope->vars = sc;
+  return sc;
+}
+
 static Obj *new_var(char *name, Type *ty) {
   Obj *var = calloc(1, sizeof(Obj));
   var->name = name;
   var->ty = ty;
+  push_scope(name, var);
   return var;
 }
 
@@ -908,6 +940,7 @@ static Node *declaration() {
 static Node *compound_stmt() {
   Node head = {};
   Node *cur = &head;
+  enter_scope();
   while (!equal("}")) {
     if (is_typename()) {
       cur->next = declaration();
@@ -917,6 +950,7 @@ static Node *compound_stmt() {
     cur = cur->next;
     add_type(cur);
   }
+  leave_scope();
 
   Node *node = new_node(ND_BLOCK);
   node->body = head.next;
@@ -942,12 +976,14 @@ Obj *function(Type *basety) {
   }
   token = token->next;
   locals = NULL;
+  enter_scope();
 
   fn->name = get_identify(ty->name);
   create_param_lvars(ty->params);
   fn->params = locals;
   fn->body = compound_stmt();
   fn->locals = locals;
+  leave_scope();
   return fn;
 }
 
