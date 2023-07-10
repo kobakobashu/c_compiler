@@ -50,3 +50,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+9cc/test/*.exe
+9cc/test/*.s
