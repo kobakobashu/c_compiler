@@ -167,6 +167,9 @@ static void gen(Node *node) {
     println("  pop rax");
     println("  jmp .L.return.%s", current_fn->name);
     return;
+  case ND_EXPR_STMT:
+    gen(node->lhs);
+    return;
   case ND_ADDR:
     gen_val(node->lhs);
     return;

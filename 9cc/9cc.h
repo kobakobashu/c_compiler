@@ -82,6 +82,7 @@ typedef enum {
     ND_DEREF, // *
     ND_FUNCALL, // function call
     ND_STMT_EXPR, // Statement expression
+    ND_EXPR_STMT, // Expression statement
 } NodeKind;
 
 typedef struct Node Node;

@@ -468,7 +468,21 @@ static Node *expr() {
   return assign();
 }
 
-// stmt = expr ";"
+// expr-stmt = expr? ";"
+static Node *expr_stmt() {
+  if (equal(";")) {
+    return new_node(ND_BLOCK);
+  }
+
+  Node *node = new_node(ND_EXPR_STMT);
+  node->lhs = expr();
+  if (!consume(";")) {
+    error_at(token->str, "';' is needed");
+  }
+  return node;
+}
+
+// stmt = expr-stmt
 //      | "return" expr ";"
 //      | "{" stmt* "}"
 //      | "if" "(" expr ")" stmt ("else" stmt)?
@@ -547,11 +561,7 @@ static Node *stmt() {
     return node;
   }
 
-  node = expr();
-  if (!consume(";")) {
-    error_at(token->str, "';' is needed");
-  }
-  return node;
+  return expr_stmt();
 }
 
 // declspec = "char" | "int"
