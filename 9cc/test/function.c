@@ -48,7 +48,7 @@ int main() {
   ASSERT(1, sub2(4,3));
   ASSERT(55, fib(9));
 
-  //  ASSERT(1, ({ sub_char(7, 3, 3); }));
+  ASSERT(1, ({ sub_char(7, 3, 3); }));
 
   printf("OK\n");
   return 0;

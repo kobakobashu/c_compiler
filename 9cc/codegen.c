@@ -1,7 +1,8 @@
 #include "9cc.h"
 
 static FILE *output_file;
-static void gen(Node *node);
+static void gen_stmt(Node *node);
+static void gen_expr(Node *node);
 
 static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
@@ -34,20 +35,19 @@ static int align_to(int n, int align) {
   return (n + align - 1) / align * align;
 }
 
-static void gen_val(Node *node) {
+static void gen_addr(Node *node) {
   switch (node->kind) {
   case ND_VAR:
     if (node->var->is_local) {
-      println("  mov rax, rbp");
-      println("  add rax, %d", node->var->offset);
-      println("  push rax");
+      // println("  mov rax, rbp");
+      // println("  add rax, %d", node->var->offset);
+      println("  lea rax, [rbp + %d]", node->var->offset);
     } else {
       println("  lea rax, [rip + %s]", node->var->name);
-      println("  push rax");
     }
     return;
   case ND_DEREF:
-    gen(node->lhs);
+    gen_expr(node->lhs);
     return;
   }
 }
@@ -64,39 +64,119 @@ static void load(Type *ty) {
     return;
   }
 
-  println("  pop rax");
   if (ty->size == 1)
     println("  movsx rax, byte ptr [rax]");
   else
     println("  mov rax, [rax]");
 
-  println("  push rax");
 }
 
 // Store %rax to an address that the stack top is pointing to.
 static void store(Type *ty) {
   println("  pop rdi");
-  println("  pop rax");
   if (ty->size == 1)
-    println("  mov [rax], dil");
+    println("  mov [dil], rax");
   else
-    println("  mov [rax], rdi");
-  println("  push rdi");
+    println("  mov [rdi], rax");
 }
 
-static void gen(Node *node) {
+// Generate code for a given node.
+static void gen_expr(Node *node) {
+  switch (node->kind) {
+  case ND_NUM:
+    println("  mov rax, %d", node->val);
+    return;
+  case ND_VAR:
+    gen_addr(node);
+    load(node->ty);
+    return;
+  case ND_DEREF:
+    gen_expr(node->lhs);
+    load(node->ty);
+    return;
+  case ND_ADDR:
+    gen_addr(node->lhs);
+    return;
+  case ND_ASSIGN:
+    gen_addr(node->lhs);
+    push();
+    gen_expr(node->rhs);
+    store(node->ty);
+    return;
+  case ND_STMT_EXPR:
+    for (Node *n = node->body; n; n = n->next)
+      gen_stmt(n);
+    return;
+  case ND_FUNCALL: {
+    int nargs = 0;
+    for (Node *arg = node->args; arg; arg = arg->next) {
+      gen_expr(arg);
+      push();
+      nargs++;
+    }
+    for (int i = nargs - 1; i >= 0; i--)
+      pop(argreg64[i]);
+    println("  mov rax, 0");
+    println("  call %s", node->funcname);
+    return;
+  }
+  }
+
+  gen_expr(node->rhs);
+  push();
+  gen_expr(node->lhs);
+  pop("rdi");
+
+  switch (node->kind) {
+  case ND_ADD:
+    println("  add rax, rdi");
+    return;
+  case ND_SUB:
+    println("  sub rax, rdi");
+    return;
+  case ND_MUL:
+    println("  imul rax, rdi");
+    return;
+  case ND_DIV:
+    println("  cqo");
+    println("  idiv rdi");
+    return;
+  case ND_EQ:
+    println("  cmp rax, rdi");
+    println("  sete al");
+    println("  movzb rax, al");
+    return;
+  case ND_NE:
+    println("  cmp rax, rdi");
+    println("  setne al");
+    println("  movzb rax, al");
+    return;
+  case ND_LT:
+    println("  cmp rax, rdi");
+    println("  setl al");
+    println("  movzb rax, al");
+    return;
+  case ND_LE:
+    println("  cmp rax, rdi");
+    println("  setle al");
+    println("  movzb rax, al");
+    return;
+  }
+  error("invalid expression");
+}
+
+static void gen_stmt(Node *node) {
   switch (node->kind) {
   case ND_IF: {
     int c = count();
-    gen(node->cond);
-    println("  pop rax");
+    gen_expr(node->cond);
     println("  cmp rax, 0");
     println("  je  .L.else%d", c);
-    gen(node->then);
+    gen_stmt(node->then);
     println("  jmp .L.end%d", c);
     println(".L.else%d:", c);
     if (node->els) {
-      gen(node->els);
+      gen_stmt(node->els);
     }
     println(".L.end%d:", c);
     return;
@@ -104,124 +184,40 @@ static void gen(Node *node) {
   case ND_WHILE: {
     int c = count();
     println(".L.begin%d:", c);
-    gen(node->cond);
-    println("  pop rax");
+    gen_expr(node->cond);
     println("  cmp rax, 0");
     println("  je .L.end%d", c);
-    gen(node->then);
+    gen_stmt(node->then);
     println("  jmp .L.begin%d", c);
     println(".L.end%d:", c);
     return;
   }
   case ND_FOR: {
     int c = count();
-    gen(node->init);
+    gen_stmt(node->init);
     println(".L.begin%d:", c);
-    gen(node->cond);
-    println("  pop rax");
+    gen_expr(node->cond);
     println("  cmp rax, 0");
     println("  je .L.end%d", c);
-    gen(node->then);
-    gen(node->inc);
+    gen_stmt(node->then);
+    gen_expr(node->inc);
     println("  jmp .L.begin%d", c);
     println(".L.end%d:", c);
     return;
   }
   case ND_BLOCK:
     for (Node *n = node->body; n; n = n->next)
-      gen(n);
+      gen_stmt(n);
     return;
-  case ND_NUM:
-    println("  push %d", node->val);
-    return;
-  case ND_VAR:
-    gen_val(node);
-    load(node->ty);
-    return;
-  case ND_ASSIGN:
-    gen_val(node->lhs);
-    gen(node->rhs);
-
-    store(node->ty);
-    return;
-  case ND_STMT_EXPR:
-    for (Node *n = node->body; n; n = n->next)
-      gen(n);
-    return;
-  case ND_FUNCALL: {
-    int nargs = 0;
-    for (Node *arg = node->args; arg; arg = arg->next) {
-      gen(arg);
-      nargs++;
-    }
-
-    for (int i = nargs - 1; i >= 0; i--)
-      pop(argreg64[i]);
-
-    println("  call %s", node->funcname);
-    println("  push rax");
-    return;
-  }
   case ND_RETURN:
-    gen(node->lhs);
-    println("  pop rax");
+    gen_expr(node->lhs);
     println("  jmp .L.return.%s", current_fn->name);
     return;
   case ND_EXPR_STMT:
-    gen(node->lhs);
-    return;
-  case ND_ADDR:
-    gen_val(node->lhs);
-    return;
-  case ND_DEREF:
-    gen(node->lhs);
-    load(node->ty);
+    gen_expr(node->lhs);
     return;
   }
-
-  gen(node->lhs);
-  gen(node->rhs);
-
-  println("  pop rdi");
-  println("  pop rax");
-
-  switch (node->kind) {
-  case ND_ADD:
-    println("  add rax, rdi");
-    break;
-  case ND_SUB:
-    println("  sub rax, rdi");
-    break;
-  case ND_MUL:
-    println("  imul rax, rdi");
-    break;
-  case ND_DIV:
-    println("  cqo");
-    println("  idiv rdi");
-    break;
-  case ND_EQ:
-    println("  cmp rax, rdi");
-    println("  sete al");
-    println("  movzb rax, al");
-    break;
-  case ND_NE:
-    println("  cmp rax, rdi");
-    println("  setne al");
-    println("  movzb rax, al");
-    break;
-  case ND_LT:
-    println("  cmp rax, rdi");
-    println("  setl al");
-    println("  movzb rax, al");
-    break;
-  case ND_LE:
-    println("  cmp rax, rdi");
-    println("  setle al");
-    println("  movzb rax, al");
-    break;
-  }
-
-  println("  push rax");
+  error("invalid expression2");
 }
 
 static void assign_lvar_offset(Obj *prog) {
@@ -283,7 +279,7 @@ static void emit_text(Obj *prog) {
         println("  mov %d[rbp], %s", var->offset, argreg64[i++]);
     }
 
-    gen(fn->body);
+    gen_stmt(fn->body);
 
     println(".L.return.%s:", fn->name);
     println("  mov rsp, rbp");

@@ -548,8 +548,8 @@ static Node *stmt() {
     if (!consume("(")) {
       error_at(token->str, "need '('");
     }
-    node->init = expr();
-    if (consume(";")) {
+    node->init = expr_stmt();
+    if (!equal(";")) {
       node->cond = expr();
     }
     consume(";");
