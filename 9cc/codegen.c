@@ -39,8 +39,6 @@ static void gen_addr(Node *node) {
   switch (node->kind) {
   case ND_VAR:
     if (node->var->is_local) {
-      // println("  mov rax, rbp");
-      // println("  add rax, %d", node->var->offset);
       println("  lea rax, [rbp + %d]", node->var->offset);
     } else {
       println("  lea rax, [rip + %s]", node->var->name);
@@ -75,7 +73,8 @@ static void load(Type *ty) {
 static void store(Type *ty) {
   println("  pop rdi");
   if (ty->size == 1)
-    println("  mov [dil], rax");
+    // ToDo: Research why rdi is enough if size == 1
+    println("  mov [rdi], rax");
   else
     println("  mov [rdi], rax");
 }

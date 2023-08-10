@@ -32,11 +32,11 @@ int main() {
   ASSERT(16, "\20"[0]);
   ASSERT(65, "\101"[0]);
   ASSERT(104, "\1500"[0]);
-  // ASSERT(255, "\377"[0]);
+  ASSERT(-1, "\377"[0]);
   ASSERT(0, "\x00"[0]);
   ASSERT(119, "\x77"[0]);
-  // ASSERT(165, "\xA5"[0]);
-  // ASSERT(255, "\x00ff"[0]);
+  ASSERT(-91, "\xA5"[0]);
+  ASSERT(-1, "\x00ff"[0]);
 
   printf("OK\n");
   return 0;
