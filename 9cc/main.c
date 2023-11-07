@@ -47,14 +47,12 @@ static FILE *open_file(char *path) {
   return out;
 }
 
-char *user_input;
 
 int main(int argc, char **argv) {
   parse_args(argc, argv);
 
-  user_input = input_path;
-  token = tokenize_file();
-  Obj *prog = parse();
+  Token *tok = tokenize_file(input_path);
+  Obj *prog = parse(tok);
   FILE *out = open_file(opt_o);
   codegen(prog, out);
   return 0;

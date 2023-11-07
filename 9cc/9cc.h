@@ -1,6 +1,7 @@
 #ifndef CC_H
 #define CC_H
 
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -8,8 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-extern char *user_input;
 
 typedef struct Type Type;
 
@@ -24,19 +23,12 @@ char *format(char *fmt, ...);
 //
 
 typedef enum {
-    TK_RESERVED,
-    TK_IDENT,
-    TK_NUM,
-    TK_EOF,
-    TK_RETURN,
-    TK_IF,
-    TK_ELSE,
-    TK_WHILE,
-    TK_FOR,
-    TK_INT,
-    TK_CHAR,
-    TK_SIZEOF,
-    TK_STR,
+    TK_IDENT,   // Identifiers
+    TK_PUNCT,   // Punctuators
+    TK_KEYWORD, // Keywords
+    TK_STR,     // String literals
+    TK_NUM,     // Numeric literals
+    TK_EOF,     // End-of-file markers
 } TokenKind;
 
 typedef struct Token Token;
@@ -44,16 +36,19 @@ struct Token {
     TokenKind kind;
     Token *next;
     int val;
-    char *str;
+    char *loc;
     int len;
     Type *ty;
+    char *str;
 };
 
-void error_at(char *loc, char *fmt, ...);
 void error(char *fmt, ...);
-Token *tokenize_file();
-
-extern Token *token;
+void error_at(char *loc, char *fmt, ...);
+void error_tok(Token *tok, char *fmt, ...);
+bool equal(Token *tok, char *op);
+Token *skip(Token *tok, char *op);
+bool consume(Token **rest, Token *tok, char *str);
+Token *tokenize_file(char *filename);
 
 //
 // parser
@@ -76,13 +71,13 @@ typedef enum {
     ND_RETURN, // ret
     ND_BLOCK, // { ... }
     ND_IF, // if
-    ND_WHILE, // while
     ND_FOR, // for
     ND_ADDR, // &
     ND_DEREF, // *
     ND_FUNCALL, // function call
     ND_STMT_EXPR, // Statement expression
     ND_EXPR_STMT, // Expression statement
+    ND_NEG,
 } NodeKind;
 
 typedef struct Node Node;
@@ -90,6 +85,7 @@ struct Node {
   NodeKind kind;
   Node *next;
   Type *ty;
+  Token *tok;
   Node *lhs;
   Node *rhs;
   Node *body;
@@ -156,7 +152,9 @@ void add_type(Node *node);
 Type *pointer_to(Type *base);
 Type *func_type(Type *return_ty);
 Type *copy_type(Type *ty);
-Type *array_of(Type *base, int len);
+Type *array_of(Type *base, int size);
+
+void codegen(Obj *prog, FILE *out);
 
 extern Type *ty_int;
 extern Type *ty_char;

@@ -2,26 +2,13 @@
 
 // Input filename
 static char *current_filename;
-char *filename;
+
+// Input string
+static char *current_input;
 
 //
 // tokenizer
 //
-
-Token *token;
-
-void error_at(char *loc, char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-
-  int pos = loc - filename;
-  fprintf(stderr, "%s\n", filename);
-  fprintf(stderr, "%*s", pos, " ");
-  fprintf(stderr, "^ ");
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
-  exit(1);
-}
 
 void error(char *fmt, ...) {
   va_list ap;
@@ -31,24 +18,94 @@ void error(char *fmt, ...) {
   exit(1);
 }
 
-static Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
+// Reports an error message in the following format and exit.
+//
+// foo.c:10: x = y + 1;
+//               ^ <error message here>
+static void verror_at(char *loc, char *fmt, va_list ap) {
+  // Find a line containing `loc`.
+  char *line = loc;
+  while (current_input < line && line[-1] != '\n')
+    line--;
+
+  char *end = loc;
+  while (*end != '\n')
+    end++;
+
+  // Get a line number.
+  int line_no = 1;
+  for (char *p = current_input; p < line; p++)
+    if (*p == '\n')
+      line_no++;
+
+  // Print out the line.
+  int indent = fprintf(stderr, "%s:%d: ", current_filename, line_no);
+  fprintf(stderr, "%.*s\n", (int)(end - line), line);
+
+  // Show the error message.
+  int pos = loc - line + indent;
+
+  fprintf(stderr, "%*s", pos, ""); // print pos spaces.
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
+void error_at(char *loc, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  verror_at(loc, fmt, ap);
+}
+
+void error_tok(Token *tok, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  verror_at(tok->loc, fmt, ap);
+}
+
+// Consumes the current token if it matches `op`.
+bool equal(Token *tok, char *op) {
+  return memcmp(tok->loc, op, tok->len) == 0 && op[tok->len] == '\0';
+}
+
+// Ensure that the current token is `op`.
+Token *skip(Token *tok, char *op) {
+  if (!equal(tok, op))
+    error_tok(tok, "expected '%s'", op);
+  return tok->next;
+}
+
+bool consume(Token **rest, Token *tok, char *str) {
+  if (equal(tok, str)) {
+    *rest = tok->next;
+    return true;
+  }
+  *rest = tok;
+  return false;
+}
+
+// Create a new token.
+static Token *new_token(TokenKind kind, char *start, char *end) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
-  tok->str = str;
-  tok->len = len;
-  cur->next = tok;
+  tok->loc = start;
+  tok->len = end - start;
   return tok;
 }
 
 static bool startswith(char *p, char *q) {
-  return memcmp(p, q, strlen(q)) == 0;
+  return strncmp(p, q, strlen(q)) == 0;
 }
 
-int is_alnum(char c) {
-  return ('a' <= c && c <= 'z') ||
-         ('A' <= c && c <= 'Z') ||
-         ('1' <= c && c <= '9') ||
-         (c == '_');
+// Returns true if c is valid as the first character of an identifier.
+static bool is_ident1(char c) {
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+}
+
+// Returns true if c is valid as a non-first character of an identifier.
+static bool is_ident2(char c) {
+  return is_ident1(c) || ('0' <= c && c <= '9');
 }
 
 static int from_hex(char c) {
@@ -57,6 +114,26 @@ static int from_hex(char c) {
   if ('a' <= c && c <= 'f')
     return c - 'a' + 10;
   return c - 'A' + 10;
+}
+
+// Read a punctuator token from p and returns its length.
+static int read_punct(char *p) {
+  if (startswith(p, "==") || startswith(p, "!=") ||
+      startswith(p, "<=") || startswith(p, ">="))
+    return 2;
+
+  return ispunct(*p) ? 1 : 0;
+}
+
+static bool is_keyword(Token *tok) {
+  static char *kw[] = {
+    "return", "if", "else", "for", "while", "int", "sizeof", "char",
+  };
+
+  for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
+    if (equal(tok, kw[i]))
+      return true;
+  return false;
 }
 
 static int read_escaped_char(char **new_pos, char *p) {
@@ -112,53 +189,59 @@ static int read_escaped_char(char **new_pos, char *p) {
   }
 }
 
-static Token *read_string_literal(Token *cur, char *start) {
-  char *p = start + 1;
-  for (p; *p != '"'; p++) {
+static char *string_literal_end(char *p) {
+  char *start = p;
+  for (; *p != '"'; p++) {
     if (*p == '\n' || *p == '\0')
-      error("unclosed string literal");
+      error_at(start, "unclosed string literal");
     if (*p == '\\')
       p++;
   }
+  return p;
+}
 
-  char *end = p;
-  char *buf = calloc(1, p - start);
+static Token *read_string_literal(char *start) {
+  char *end = string_literal_end(start + 1);
+  char *buf = calloc(1, end - start);
   int len = 0;
 
-  for (p = start + 1; p < end;) {
-    if (*p == '\\') {
+  for (char *p = start + 1; p < end;) {
+    if (*p == '\\')
       buf[len++] = read_escaped_char(&p, p + 1);
-    } else {
+    else
       buf[len++] = *p++;
-    }
   }
 
-  Token *tok = new_token(TK_STR, cur, buf, end - start + 1);
+  Token *tok = new_token(TK_STR, start, end + 1);
   tok->ty = array_of(ty_char, len + 1);
+  tok->str = buf;
   return tok;
 }
 
-static Token *tokenize(char *filename) {
-  current_filename = user_input;
-  char *p = filename;
-  Token head;
-  head.next = NULL;
+static void convert_keywords(Token *tok) {
+  for (Token *t = tok; t->kind != TK_EOF; t = t->next)
+    if (is_keyword(t))
+      t->kind = TK_KEYWORD;
+}
+
+// Tokenize a given string and returns new tokens.
+static Token *tokenize(char *filename, char *p) {
+  current_filename = filename;
+  current_input = p;
+  Token head = {};
   Token *cur = &head;
 
   while (*p) {
-    if (isspace(*p)) {
-      p++;
-      continue;
-    }
-
-    if (strncmp(p, "//", 2) == 0) {
+    // Skip line comments.
+    if (startswith(p, "//")) {
       p += 2;
       while (*p != '\n')
         p++;
       continue;
     }
 
-    if (strncmp(p, "/*", 2) == 0) {
+    // Skip block comments.
+    if (startswith(p, "/*")) {
       char *q = strstr(p + 2, "*/");
       if (!q)
         error_at(p, "comment out is not closed error: need */");
@@ -166,101 +249,58 @@ static Token *tokenize(char *filename) {
       continue;
     }
 
-    if (startswith(p, "==") || startswith(p, "!=") ||
-        startswith(p, "<=") || startswith(p, ">=")) {
-      cur = new_token(TK_RESERVED, cur, p, 2);
-      p += 2;
+    // Skip whitespace characters.
+    if (isspace(*p)) {
+      p++;
       continue;
     }
 
-    if (strchr("+-*/()<>=;{}&,[]", *p)) {
-      cur = new_token(TK_RESERVED, cur, p++, 1);
+    // Numeric literal
+    if (isdigit(*p)) {
+      cur = cur->next = new_token(TK_NUM, p, p);
+      char *q = p;
+      cur->val = strtoul(p, &p, 10);
+      cur->len = p - q;
       continue;
     }
 
-    if (strchr("\"", *p)) {
-      cur = read_string_literal(cur, p);
+    // String literal
+    if (*p == '"') {
+      cur = cur->next = read_string_literal(p);
       p += cur->len;
       continue;
     }
 
-    if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p, 0);
-      char *q = p;
-      cur->val = strtol(p, &p, 10);
-      cur->len = p - q;
-      continue;
-    }
-
-    if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
-      cur = new_token(TK_RETURN, cur, p, 6);
-      p += 6;
-      continue;
-    }
-
-    if (strncmp(p, "if", 2) == 0 && !is_alnum(p[2])) {
-      cur = new_token(TK_IF, cur, p, 2);
-      p += 2;
-      continue;
-    }
-
-    if (strncmp(p, "else", 4) == 0 && !is_alnum(p[4])) {
-      cur = new_token(TK_ELSE, cur, p, 4);
-      p += 4;
-      continue;
-    }
-
-    if (strncmp(p, "while", 5) == 0 && !is_alnum(p[5])) {
-      cur = new_token(TK_WHILE, cur, p, 5);
-      p += 5;
-      continue;
-    }
-
-    if (strncmp(p, "for", 3) == 0 && !is_alnum(p[3])) {
-      cur = new_token(TK_FOR, cur, p, 3);
-      p += 3;
-      continue;
-    }
-
-    if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3])) {
-      cur = new_token(TK_INT, cur, p, 3);
-      p += 3;
-      continue;
-    }
-
-    if (strncmp(p, "char", 4) == 0 && !is_alnum(p[4])) {
-      cur = new_token(TK_CHAR, cur, p, 4);
-      p += 4;
-      continue;
-    }
-
-    if (strncmp(p, "sizeof", 6) == 0 && !is_alnum(p[6])) {
-      cur = new_token(TK_SIZEOF, cur, p, 6);
-      p += 6;
-      continue;
-    }
-
-    if ('a' <= *p && *p <= 'z') {
-      cur = new_token(TK_IDENT, cur, p, 0);
-      char *q = p;
-      while ('a' <= *p && *p <= 'z' || *p == '_' || isdigit(*p)) {
+    // Identifier or keyword
+    if (is_ident1(*p)) {
+      char *start = p;
+      do {
         p++;
-      }
-      cur->len = p - q;
+      } while (is_ident2(*p));
+      cur = cur->next = new_token(TK_IDENT, start, p);
       continue;
     }
 
-    error_at(token->str, "invalid character");
+    // Punctuators
+    int punct_len = read_punct(p);
+    if (punct_len) {
+      cur = cur->next = new_token(TK_PUNCT, p, p + punct_len);
+      p += cur->len;
+      continue;
+    }
+
+    error_at(p, "invalid token");
   }
 
-  new_token(TK_EOF, cur, p, 0);
+  cur = cur->next = new_token(TK_EOF, p, p);
+  convert_keywords(head.next);
   return head.next;
 }
 
-static char *read_file() {
+// Returns the contents of a given file.
+static char *read_file(char *path) {
   FILE *fp;
 
-  char *path = user_input;
   if (strcmp(path, "-") == 0) {
     fp = stdin;
   } else {
@@ -292,7 +332,6 @@ static char *read_file() {
   return buf;
 }
 
-Token *tokenize_file() {
-  filename = read_file();
-  return tokenize(filename);
+Token *tokenize_file(char *path) {
+  return tokenize(path, read_file(path));
 }

@@ -3,7 +3,7 @@
 static FILE *output_file;
 static void gen_stmt(Node *node);
 static void gen_expr(Node *node);
-
+static int depth;
 static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static Obj *current_fn;
@@ -23,10 +23,12 @@ static int count(void) {
 
 static void push(void) {
   println("  push rax");
+  depth++;
 }
 
 static void pop(char *arg) {
   println("  pop %s", arg);
+  depth--;
 }
 
 // Round up `n` to the nearest multiple of `align`. For instance,
@@ -48,6 +50,8 @@ static void gen_addr(Node *node) {
     gen_expr(node->lhs);
     return;
   }
+
+  error_tok(node->tok, "not an lvalue");
 }
 
 // Load a value from where %rax is pointing to.
@@ -71,7 +75,7 @@ static void load(Type *ty) {
 
 // Store %rax to an address that the stack top is pointing to.
 static void store(Type *ty) {
-  println("  pop rdi");
+  pop("rdi");
   if (ty->size == 1)
     // ToDo: Research why rdi is enough if size == 1
     println("  mov [rdi], rax");
@@ -84,6 +88,10 @@ static void gen_expr(Node *node) {
   switch (node->kind) {
   case ND_NUM:
     println("  mov rax, %d", node->val);
+    return;
+  case ND_NEG:
+    gen_expr(node->lhs);
+    println("  neg rax");
     return;
   case ND_VAR:
     gen_addr(node);
@@ -161,7 +169,7 @@ static void gen_expr(Node *node) {
     println("  movzb rax, al");
     return;
   }
-  error("invalid expression");
+  error_tok(node->tok, "invalid expression");
 }
 
 static void gen_stmt(Node *node) {
@@ -180,26 +188,19 @@ static void gen_stmt(Node *node) {
     println(".L.end%d:", c);
     return;
   }
-  case ND_WHILE: {
-    int c = count();
-    println(".L.begin%d:", c);
-    gen_expr(node->cond);
-    println("  cmp rax, 0");
-    println("  je .L.end%d", c);
-    gen_stmt(node->then);
-    println("  jmp .L.begin%d", c);
-    println(".L.end%d:", c);
-    return;
-  }
   case ND_FOR: {
     int c = count();
-    gen_stmt(node->init);
+    if (node->init)
+      gen_stmt(node->init);
     println(".L.begin%d:", c);
-    gen_expr(node->cond);
-    println("  cmp rax, 0");
-    println("  je .L.end%d", c);
+    if (node->cond) {
+      gen_expr(node->cond);
+      println("  cmp rax, 0");
+      println("  je .L.end%d", c);
+    }
     gen_stmt(node->then);
-    gen_expr(node->inc);
+    if (node->inc)
+      gen_expr(node->inc);
     println("  jmp .L.begin%d", c);
     println(".L.end%d:", c);
     return;
@@ -216,23 +217,22 @@ static void gen_stmt(Node *node) {
     gen_expr(node->lhs);
     return;
   }
-  error("invalid expression2");
+
+  error_tok(node->tok, "invalid statement");
 }
 
-static void assign_lvar_offset(Obj *prog) {
+static void assign_lvar_offsets(Obj *prog) {
   for (Obj *fn = prog; fn; fn = fn->next) {
     if (!fn->is_function) {
       continue;
     }
 
-    if (fn->locals) {
-      int offset = 0;
-      for (Obj *var = fn->locals; var; var = var->next) {
-        offset += var->ty->size;
-        var->offset = -offset;
-      }
-      fn->stack_size = align_to(offset, 16);
+    int offset = 0;
+    for (Obj *var = fn->locals; var; var = var->next) {
+      offset += var->ty->size;
+      var->offset = -offset;
     }
+    fn->stack_size = align_to(offset, 16);
   }
 }
 
@@ -279,6 +279,7 @@ static void emit_text(Obj *prog) {
     }
 
     gen_stmt(fn->body);
+    assert(depth == 0);
 
     println(".L.return.%s:", fn->name);
     println("  mov rsp, rbp");
@@ -290,7 +291,7 @@ static void emit_text(Obj *prog) {
 void codegen(Obj *prog, FILE *out) {
   output_file = out;
 
-  assign_lvar_offset(prog);
+  assign_lvar_offsets(prog);
   emit_data(prog);
   emit_text(prog);
 }

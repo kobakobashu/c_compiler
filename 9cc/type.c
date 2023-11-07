@@ -47,11 +47,12 @@ void add_type(Node *node) {
   case ND_SUB:
   case ND_MUL:
   case ND_DIV:
+  case ND_NEG:
     node->ty = node->lhs->ty;
     return;
   case ND_ASSIGN:
     if (node->lhs->ty->kind == TY_ARRAY)
-      error("not an lvalue");
+      error_tok(node->lhs->tok, "not an lvalue");
     node->ty = node->lhs->ty;
     return;
   case ND_EQ:
@@ -73,7 +74,7 @@ void add_type(Node *node) {
     return;
   case ND_DEREF:
     if (!node->lhs->ty->base)
-      error("invalid pointer dereference");
+      error_tok(node->tok, "invalid pointer dereference");
     node->ty = node->lhs->ty->base;
     return;
   case ND_STMT_EXPR:
@@ -82,11 +83,11 @@ void add_type(Node *node) {
       while (stmt->next)
         stmt = stmt->next;
       if (stmt->kind == ND_EXPR_STMT) {
-        node->ty = stmt->ty;
+        node->ty = stmt->lhs->ty;
         return;
       }
     }
-    error("statement expression returning void is not supported");
+    error_tok(node->tok, "statement expression returning void is not supported");
     return;
   }
 }
