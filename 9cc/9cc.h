@@ -56,6 +56,7 @@ Token *tokenize_file(char *filename);
 //
 
 typedef struct Obj Obj;
+typedef struct Member Member;
 
 typedef enum {
     ND_ADD,
@@ -70,6 +71,7 @@ typedef enum {
     ND_VAR,
     ND_ASSIGN, // =
     ND_COMMA, // ,
+    ND_MEMBER, // . (struct member access)
     ND_RETURN, // ret
     ND_BLOCK, // { ... }
     ND_IF, // if
@@ -91,6 +93,7 @@ struct Node {
   Node *lhs;
   Node *rhs;
   Node *body;
+  Member *member;
   Node *cond;
   Node *then;
   Node *els;
@@ -136,6 +139,7 @@ typedef enum {
   TY_PTR,
   TY_FUNC,
   TY_ARRAY,
+  TY_STRUCT,
 } TypeKind;
 
 struct Type {
@@ -147,6 +151,7 @@ struct Type {
   Type *params;
   Type *next;
   int array_len;
+  Member *members;
 };
 
 bool is_integer(Type *ty);
@@ -157,6 +162,14 @@ Type *copy_type(Type *ty);
 Type *array_of(Type *base, int size);
 
 void codegen(Obj *prog, FILE *out);
+
+// Struct member
+struct Member {
+  Member *next;
+  Type *ty;
+  Token *name;
+  int offset;
+};
 
 extern Type *ty_int;
 extern Type *ty_char;
