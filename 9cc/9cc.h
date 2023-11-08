@@ -69,6 +69,7 @@ typedef enum {
     ND_LE, // <=
     ND_VAR,
     ND_ASSIGN, // =
+    ND_COMMA, // ,
     ND_RETURN, // ret
     ND_BLOCK, // { ... }
     ND_IF, // if
