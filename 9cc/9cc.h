@@ -145,6 +145,7 @@ typedef enum {
 struct Type {
   TypeKind kind;
   int size; // sizeof() value
+  int align; // alignment
   Type *base;
   Token *name;
   Type *return_ty;
@@ -162,6 +163,7 @@ Type *copy_type(Type *ty);
 Type *array_of(Type *base, int size);
 
 void codegen(Obj *prog, FILE *out);
+int align_to(int n, int align);
 
 // Struct member
 struct Member {
