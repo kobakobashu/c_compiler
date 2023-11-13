@@ -5,6 +5,7 @@ static void gen_stmt(Node *node);
 static void gen_expr(Node *node);
 static int depth;
 static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+static char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static Obj *current_fn;
 
@@ -76,6 +77,8 @@ static void load(Type *ty) {
 
   if (ty->size == 1)
     println("  movsx rax, byte ptr [rax]");
+  else if (ty->size == 4)
+    println("  movsxd rax, dword ptr [rax]");
   else
     println("  mov rax, [rax]");
 
@@ -93,9 +96,26 @@ static void store(Type *ty) {
   }
   if (ty->size == 1)
     // ToDo: Research why rdi is enough if size == 1
-    println("  mov [rdi], rax");
+    println("  mov [rdi], al");
+  else if (ty->size == 4)
+    println("  mov [rdi], eax");
   else
     println("  mov [rdi], rax");
+}
+
+static void store_gp(int r, int offset, int sz) {
+  switch (sz) {
+  case 1:
+    println("  mov %d[rbp], %s", offset, argreg8[r]);
+    return;
+  case 4:
+    println("  mov %d[rbp], %s", offset, argreg32[r]);
+    return;
+  case 8:
+    println("  mov %d[rbp], %s", offset, argreg64[r]);
+    return;
+  }
+  unreachable();
 }
 
 // Generate code for a given node.
@@ -294,12 +314,8 @@ static void emit_text(Obj *prog) {
 
     // Save passed-by-register arguments to the stack
     int i = 0;
-    for (Obj *var = fn->params; var; var = var->next) {
-      if (var->ty->size == 1)
-        println("  mov %d[rbp], %s", var->offset, argreg8[i++]);
-      else
-        println("  mov %d[rbp], %s", var->offset, argreg64[i++]);
-    }
+    for (Obj *var = fn->params; var; var = var->next)
+      store_gp(i++, var->offset, var->ty->size);
 
     gen_stmt(fn->body);
     assert(depth == 0);
