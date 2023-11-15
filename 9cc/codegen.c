@@ -123,7 +123,7 @@ static void gen_expr(Node *node) {
   println(" .loc 1 %d", node->tok->line_no);
   switch (node->kind) {
   case ND_NUM:
-    println("  mov rax, %d", node->val);
+    println("  mov rax, %ld", node->val);
     return;
   case ND_NEG:
     gen_expr(node->lhs);

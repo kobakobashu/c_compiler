@@ -1,6 +1,7 @@
 #include "9cc.h"
 
 Type *ty_int = &(Type){TY_INT, 4, 4};
+Type *ty_long = &(Type){TY_LONG, 8, 8};
 Type *ty_char = &(Type){TY_CHAR, 1, 1};
 
 static Type *new_type(TypeKind kind, int size, int align) {
@@ -12,7 +13,8 @@ static Type *new_type(TypeKind kind, int size, int align) {
 }
 
 bool is_integer(Type *ty) {
-  return ty->kind == TY_INT || ty->kind == TY_CHAR;
+  TypeKind k = ty->kind;
+  return k == TY_CHAR || k == TY_INT || k == TY_LONG;
 }
 
 Type *pointer_to(Type *base) {
@@ -65,7 +67,7 @@ void add_type(Node *node) {
   case ND_LE:
   case ND_NUM:
   case ND_FUNCALL:
-    node->ty = ty_int;
+    node->ty = ty_long;
     return;
   case ND_VAR:
     node->ty = node->var->ty;

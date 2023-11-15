@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +36,7 @@ typedef struct Token Token;
 struct Token {
     TokenKind kind;
     Token *next;
-    int val;
+    int64_t val;
     char *loc;
     int len;
     Type *ty;
@@ -103,7 +104,7 @@ struct Node {
   Node *inc;
   Node *init;
   char *funcname;
-  int val;
+  int64_t val;
   Obj *var;
   Node *args;
 };
@@ -139,6 +140,7 @@ void codegen(Obj *prog, FILE *out);
 typedef enum {
   TY_CHAR,
   TY_INT,
+  TY_LONG,
   TY_PTR,
   TY_FUNC,
   TY_ARRAY,
@@ -179,5 +181,6 @@ struct Member {
 
 extern Type *ty_int;
 extern Type *ty_char;
+extern Type *ty_long;
 
 #endif
