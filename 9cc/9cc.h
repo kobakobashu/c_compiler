@@ -120,6 +120,7 @@ struct Obj {
   int offset;
   bool is_local;
   bool is_function;
+  bool is_definition;
   char *init_data;
 };
 
