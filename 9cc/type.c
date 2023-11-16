@@ -1,5 +1,6 @@
 #include "9cc.h"
 
+Type *ty_void = &(Type){TY_VOID, 1, 1};
 Type *ty_int = &(Type){TY_INT, 4, 4};
 Type *ty_short = &(Type){TY_SHORT, 2, 2};
 Type *ty_long = &(Type){TY_LONG, 8, 8};
@@ -88,6 +89,8 @@ void add_type(Node *node) {
   case ND_DEREF:
     if (!node->lhs->ty->base)
       error_tok(node->tok, "invalid pointer dereference");
+    if (node->lhs->ty->base->kind == TY_VOID)
+      error_tok(node->tok, "dereferencing a void pointer");
     node->ty = node->lhs->ty->base;
     return;
   case ND_STMT_EXPR:
