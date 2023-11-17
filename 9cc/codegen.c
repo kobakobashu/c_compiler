@@ -183,37 +183,50 @@ static void gen_expr(Node *node) {
   gen_expr(node->lhs);
   pop("rdi");
 
+  char *ax, *di;
+
+  if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base) {
+    ax = "rax";
+    di = "rdi";
+  } else {
+    ax = "eax";
+    di = "edi";
+  }
+
   switch (node->kind) {
   case ND_ADD:
-    println("  add rax, rdi");
+    println("  add %s, %s", ax, di);
     return;
   case ND_SUB:
-    println("  sub rax, rdi");
+    println("  sub %s, %s", ax, di);
     return;
   case ND_MUL:
-    println("  imul rax, rdi");
+    println("  imul %s, %s", ax, di);
     return;
   case ND_DIV:
-    println("  cqo");
-    println("  idiv rdi");
+    if (node->lhs->ty->size == 8)
+      println("  cqo");
+    else
+      println("  cdq");
+    println("  idiv %s", di);
     return;
   case ND_EQ:
-    println("  cmp rax, rdi");
+    println("  cmp %s, %s", ax, di);
     println("  sete al");
     println("  movzb rax, al");
     return;
   case ND_NE:
-    println("  cmp rax, rdi");
+    println("  cmp %s, %s", ax, di);
     println("  setne al");
     println("  movzb rax, al");
     return;
   case ND_LT:
-    println("  cmp rax, rdi");
+    println("  cmp %s, %s", ax, di);
     println("  setl al");
     println("  movzb rax, al");
     return;
   case ND_LE:
-    println("  cmp rax, rdi");
+    println("  cmp %s, %s", ax, di);
     println("  setle al");
     println("  movzb rax, al");
     return;
