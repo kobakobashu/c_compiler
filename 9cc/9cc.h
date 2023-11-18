@@ -125,6 +125,7 @@ struct Obj {
   char *init_data;
 };
 
+Node *new_cast(Node *expr, Type *ty);
 Obj *parse();
 
 extern Node *code[100];
