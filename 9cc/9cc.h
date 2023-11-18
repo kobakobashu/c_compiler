@@ -86,6 +86,7 @@ typedef enum {
     ND_STMT_EXPR, // Statement expression
     ND_EXPR_STMT, // Expression statement
     ND_NEG,
+    ND_CAST, // Type cast
 } NodeKind;
 
 typedef struct Node Node;
