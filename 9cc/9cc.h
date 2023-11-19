@@ -105,6 +105,7 @@ struct Node {
   Node *inc;
   Node *init;
   char *funcname;
+  Type *func_ty;
   int64_t val;
   Obj *var;
   Node *args;
