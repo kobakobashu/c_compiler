@@ -133,6 +133,13 @@ static void store_gp(int r, int offset, int sz) {
   unreachable();
 }
 
+static void cmp_zero(Type *ty) {
+  if (is_integer(ty) && ty->size <= 4)
+    println("  cmp eax, 0");
+  else
+    println("  cmp rax, 0");
+}
+
 enum { I8, I16, I32, I64 };
 
 static int getTypeId(Type *ty) {
@@ -162,6 +169,13 @@ static char *cast_table[][10] = {
 static void cast(Type *from, Type *to) {
   if (to->kind == TY_VOID)
     return;
+
+  if (to->kind == TY_BOOL) {
+    cmp_zero(from);
+    println("  setne al");
+    println("  movzx eax, al");
+    return;
+  }
 
   int t1 = getTypeId(from);
   int t2 = getTypeId(to);
