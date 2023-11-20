@@ -5,16 +5,19 @@
 // parser
 //
 
-// Scope for local, global variables or typedefs.
+// Scope for local variables, global variables, typedefs
+// or enum constants
 typedef struct VarScope VarScope;
 struct VarScope {
   VarScope *next;
   char *name;
   Obj *var;
   Type *type_def;
+  Type *enum_ty;
+  int enum_val;
 };
 
-// Scope for struct or union tags
+// Scope for struct, union or enum tags
 typedef struct TagScope TagScope;
 struct TagScope {
   TagScope *next;
@@ -26,6 +29,8 @@ struct TagScope {
 typedef struct Scope Scope;
 struct Scope {
   Scope *next;
+  // C has two block scopes; one is for variables/typedefs and
+  // the other is for struct/union/enum tags.
   VarScope *vars;
   TagScope *tags;
 };
@@ -65,6 +70,7 @@ static Node *postfix(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 static Token *parse_typedef(Token *tok, Type *basety);
+static Type *enum_specifier(Token **rest, Token *tok);
 
 static Node *new_node(NodeKind kind, Token *tok) {
   Node *node = calloc(1, sizeof(Node));
@@ -279,7 +285,7 @@ static bool is_function(Token *tok) {
 
 // Returns true if a given token represents a type.
 static bool is_typename(Token *tok) {
-  static char *kw[] = {"void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef",};
+  static char *kw[] = {"void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef", "enum",};
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(tok, kw[i])) {
@@ -390,12 +396,18 @@ static Node *primary(Token **rest, Token *tok) {
     if (equal(tok->next, "("))
       return funcall(rest, tok);
 
-    // Variable
+    // Variable or enum constant
     VarScope *sc = find_var(tok);
-    if (!sc || !sc->var)
+    if (!sc || (!sc->var && !sc->enum_ty))
       error_tok(tok, "undefined variable");
+
+    Node *node;
+    if (sc->var)
+      node = new_var_node(sc->var, tok);
+    else
+      node = new_num(sc->enum_val, tok);
     *rest = tok->next;
-    return new_var_node(sc->var, tok);
+    return node;
   }
 
   if (tok->kind == TK_STR) {
@@ -809,7 +821,61 @@ static Node *stmt(Token **rest, Token *tok) {
   return expr_stmt(rest, tok);
 }
 
-// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long" | struct-decl | union-decl | typedef | typedef-name)+
+// enum-specifier = ident? "{" enum-list? "}"
+//                | ident ("{" enum-list? "}")?
+//
+// enum-list      = ident ("=" num)? ("," ident ("=" num)?)*
+
+static Type *enum_specifier(Token **rest, Token *tok) {
+  Type *ty = enum_type();
+
+  // Read a struct tag.
+  Token *tag = NULL;
+  if (tok->kind == TK_IDENT) {
+    tag = tok;
+    tok = tok->next;
+  }
+
+  if (tag && !equal(tok, "{")) {
+    Type *ty = find_tag(tag);
+    if (!ty)
+      error_tok(tag, "unknown enum type");
+    if (ty->kind != TY_ENUM)
+      error_tok(tag, "not an enum tag");
+    *rest = tok;
+    return ty;
+  }
+
+  tok = skip(tok, "{");
+
+  // Read an enum-list.
+  int i = 0;
+  int val = 0;
+  while (!equal(tok, "}")) {
+    if (i++ > 0)
+      tok = skip(tok, ",");
+
+    char *name = get_ident(tok);
+    tok = tok->next;
+
+    if (equal(tok, "=")) {
+      val = get_number(tok->next);
+      tok = tok->next->next;
+    }
+
+    VarScope *sc = push_scope(name);
+    sc->enum_ty = ty;
+    sc->enum_val = val++;
+  }
+
+  *rest = tok->next;
+
+  if (tag)
+    push_tag_scope(tag, ty);
+  return ty;
+}
+
+// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long" | struct-decl | union-decl | typedef | typedef-name | enum-specifier)+
 //
 // The order of typenames in a type-specifier doesn't matter. For
 // example, `int long static` means the same as `static long int`.
@@ -854,13 +920,15 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr) {
 
     Type *ty2 = find_typedef(tok);
     // Handle user-defined types.
-    if (equal(tok, "struct") || equal(tok, "union") || ty2) {
+    if (equal(tok, "struct") || equal(tok, "union") || equal(tok, "enum") || ty2) {
       if (counter)
         break;
       if (equal(tok, "struct")) {
         ty = struct_decl(&tok, tok->next);
       } else if (equal(tok, "union")) {
         ty = union_decl(&tok, tok->next);
+      } else if (equal(tok, "enum")) {
+        ty = enum_specifier(&tok, tok->next);
       } else {
         ty = ty2;
         tok = tok->next;

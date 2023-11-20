@@ -148,6 +148,7 @@ typedef enum {
   TY_SHORT,
   TY_INT,
   TY_LONG,
+  TY_ENUM,
   TY_PTR,
   TY_FUNC,
   TY_ARRAY,
@@ -169,6 +170,7 @@ struct Type {
 };
 
 bool is_integer(Type *ty);
+Type *enum_type(void);
 void add_type(Node *node);
 Type *pointer_to(Type *base);
 Type *func_type(Type *return_ty);
