@@ -123,6 +123,7 @@ struct Obj {
   bool is_local;
   bool is_function;
   bool is_definition;
+  bool is_static;
   char *init_data;
 };
 

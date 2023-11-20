@@ -38,6 +38,7 @@ struct Scope {
 // Variable attributes such as typedef or extern.
 typedef struct {
   bool is_typedef;
+  bool is_static;
 } VarAttr;
 
 static Obj *locals;
@@ -285,7 +286,7 @@ static bool is_function(Token *tok) {
 
 // Returns true if a given token represents a type.
 static bool is_typename(Token *tok) {
-  static char *kw[] = {"void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef", "enum",};
+  static char *kw[] = {"void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef", "enum", "static",};
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
     if (equal(tok, kw[i])) {
@@ -875,7 +876,7 @@ static Type *enum_specifier(Token **rest, Token *tok) {
   return ty;
 }
 
-// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long" | struct-decl | union-decl | typedef | typedef-name | enum-specifier)+
+// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long" | struct-decl | union-decl | typedef | "static" | typedef-name | enum-specifier)+
 //
 // The order of typenames in a type-specifier doesn't matter. For
 // example, `int long static` means the same as `static long int`.
@@ -908,12 +909,19 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr) {
   int counter = 0;
 
   while (is_typename(tok)) {
-    // Handle "typedef" keyword.
-    if (equal(tok, "typedef")) {
+    // Handle storage class specifiers.
+    if (equal(tok, "typedef") || equal(tok, "static")) {
+
       if (!attr) {
          error_tok(tok, "storage class specifier is not allowed in this context");
       }
-      attr->is_typedef = true;
+      if (equal(tok, "typedef"))
+        attr->is_typedef = true;
+      else
+        attr->is_static = true;
+
+      if (attr->is_typedef + attr->is_static > 1)
+        error_tok(tok, "typedef and static may not be used together");
       tok = tok->next;
       continue;;
     }
@@ -1147,11 +1155,12 @@ static void create_param_lvars(Type *param) {
 
 // function = declspec declarator "{" compound_stmt* "}"
 
-static Token *function(Token *tok, Type *basety) {
+static Token *function(Token *tok, Type *basety, VarAttr *attr) {
   Type *ty = declarator(&tok, tok, basety);
   Obj *fn = new_gvar(get_ident(ty->name), ty);
   fn->is_function = true;
   fn->is_definition = !consume(&tok, tok, ";");
+  fn->is_static = attr->is_static;
   if (!fn->is_definition)
     return tok;
 
@@ -1185,7 +1194,7 @@ Obj *parse(Token *tok) {
 
     // Function
     if (is_function(tok)) {
-      tok = function(tok, basety);
+      tok = function(tok, basety, &attr);
       continue;
     }
 
