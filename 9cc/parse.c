@@ -74,6 +74,7 @@ static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 static Token *parse_typedef(Token *tok, Type *basety);
 static Type *enum_specifier(Token **rest, Token *tok);
+static Node *to_assign(Node *binary);
 
 static Node *new_node(NodeKind kind, Token *tok) {
   Node *node = calloc(1, sizeof(Node));
@@ -603,6 +604,7 @@ static Node *cast(Token **rest, Token *tok) {
 }
 
 // unary = ("+" | "-" | "*" | "&") cast
+//       | ("++" | "--") unary
 //       | postfix
 
 static Node *unary(Token **rest, Token *tok) {
@@ -617,6 +619,14 @@ static Node *unary(Token **rest, Token *tok) {
 
   if (equal(tok, "*"))
     return new_unary(ND_DEREF, cast(rest, tok->next), tok);
+
+  // Read ++i as i+=1
+  if (equal(tok, "++"))
+    return to_assign(new_add(unary(rest, tok->next), new_num(1, tok), tok));
+
+  // Read --i as i-=1
+  if (equal(tok, "--"))
+    return to_assign(new_sub(unary(rest, tok->next), new_num(1, tok), tok));
 
   return postfix(rest, tok);
 }
