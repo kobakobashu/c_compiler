@@ -89,6 +89,7 @@ typedef enum {
     ND_NEG,
     ND_CAST, // Type cast
     ND_NOT, // !
+    ND_BITNOT, // ~
 } NodeKind;
 
 typedef struct Node Node;
