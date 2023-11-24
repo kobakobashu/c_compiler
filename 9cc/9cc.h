@@ -91,6 +91,9 @@ typedef enum {
     ND_NOT, // !
     ND_BITNOT, // ~
     ND_MOD, // %
+    ND_BITAND,    // &
+    ND_BITOR,     // |
+    ND_BITXOR,    // ^
 } NodeKind;
 
 typedef struct Node Node;

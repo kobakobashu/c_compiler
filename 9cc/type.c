@@ -105,6 +105,9 @@ void add_type(Node *node) {
   case ND_LT:
   case ND_LE:
   case ND_MOD:
+  case ND_BITAND:
+  case ND_BITOR:
+  case ND_BITXOR:
     usual_arith_conv(&node->lhs, &node->rhs);
     node->ty = ty_int;
     return;
