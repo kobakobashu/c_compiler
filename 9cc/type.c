@@ -104,6 +104,7 @@ void add_type(Node *node) {
   case ND_NE:
   case ND_LT:
   case ND_LE:
+  case ND_MOD:
     usual_arith_conv(&node->lhs, &node->rhs);
     node->ty = ty_int;
     return;
