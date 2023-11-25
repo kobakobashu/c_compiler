@@ -194,6 +194,7 @@ int align_to(int n, int align);
 struct Member {
   Member *next;
   Type *ty;
+  Token *tok; // for error message
   Token *name;
   int offset;
 };
