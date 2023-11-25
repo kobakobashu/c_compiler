@@ -90,6 +90,8 @@ typedef enum {
     ND_CAST, // Type cast
     ND_NOT, // !
     ND_BITNOT, // ~
+    ND_LOGAND,    // &&
+    ND_LOGOR,     // ||
     ND_MOD, // %
     ND_BITAND,    // &
     ND_BITOR,     // |
