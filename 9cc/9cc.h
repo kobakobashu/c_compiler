@@ -108,6 +108,8 @@ struct Node {
   Token *tok;
   Node *lhs;
   Node *rhs;
+  // "break" label
+  char *brk_label;
   Node *body;
   Member *member;
   Node *cond;
