@@ -171,3 +171,7 @@ Type *copy_type(Type *ty) {
   *ret = *ty;
   return ret;
 }
+
+Type *struct_type(void) {
+  return new_type(TY_STRUCT, 0, 1);
+}

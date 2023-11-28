@@ -189,6 +189,7 @@ Type *array_of(Type *base, int size);
 
 void codegen(Obj *prog, FILE *out);
 int align_to(int n, int align);
+Type *struct_type(void);
 
 // Struct member
 struct Member {
