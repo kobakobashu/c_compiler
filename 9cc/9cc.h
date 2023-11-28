@@ -79,6 +79,8 @@ typedef enum {
     ND_MEMBER, // . (struct member access)
     ND_RETURN, // ret
     ND_BLOCK, // { ... }
+    ND_GOTO,      // "goto"
+    ND_LABEL,     // Labeled statement
     ND_IF, // if
     ND_FOR, // for
     ND_ADDR, // &
@@ -114,6 +116,10 @@ struct Node {
   Node *inc;
   Node *init;
   char *funcname;
+  // Goto or labeled statement
+  char *label;
+  char *unique_label;
+  Node *goto_next;
   Type *func_ty;
   int64_t val;
   Obj *var;

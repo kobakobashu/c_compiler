@@ -44,6 +44,10 @@ typedef struct {
 static Obj *locals;
 static Obj *globals;
 
+// Lists of all goto statements and labels in the curent function.
+static Node *gotos;
+static Node *labels;
+
 // Points to the function object the parser is currently parsing.
 static Obj *current_fn;
 
@@ -447,6 +451,28 @@ static Token *parse_typedef(Token *tok, Type *basety) {
     push_scope(get_ident(ty->name))->type_def = ty;
   }
   return  tok;
+}
+
+// This function matches gotos with labels.
+//
+// We cannot resolve gotos as we parse a function because gotos
+// can refer a label that appears later in the function.
+// So, we need to do this after we parse the entire function.
+
+static void resolve_goto_labels(void) {
+  for (Node *x = gotos; x; x = x->goto_next) {
+    for (Node *y = labels; y; y = y->goto_next) {
+      if (!strcmp(x->label, y->label)) {
+        x->unique_label = y->unique_label;
+        break;
+      }
+    }
+
+    if (x->unique_label == NULL)
+      error_tok(x->tok->next, "use of undeclared label");
+  }
+
+  gotos = labels = NULL;
 }
 
 // struct-members = (declspec declarator (","  declarator)* ";")*
@@ -943,6 +969,8 @@ static Node *expr_stmt(Token **rest, Token *tok) {
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
 //      | "while" "(" expr ")" stmt
+//      | "goto" ident ";"
+//      | ident ":" stmt
 //      | "{" compound-stmt
 //      | expr-stmt
 
@@ -1001,6 +1029,25 @@ static Node *stmt(Token **rest, Token *tok) {
     node->cond = expr(&tok, tok);
     tok = skip(tok, ")");
     node->then = stmt(rest, tok);
+    return node;
+  }
+
+  if (equal(tok, "goto")) {
+    Node *node = new_node(ND_GOTO, tok);
+    node->label = get_ident(tok->next);
+    node->goto_next = gotos;
+    gotos = node;
+    *rest = skip(tok->next->next, ";");
+    return node;
+  }
+
+  if (tok->kind == TK_IDENT && equal(tok->next, ":")) {
+    Node *node = new_node(ND_LABEL, tok);
+    node->label = strndup(tok->loc, tok->len);
+    node->unique_label = new_unique_name();
+    node->lhs = stmt(rest, tok->next->next);
+    node->goto_next = labels;
+    labels = node;
     return node;
   }
 
@@ -1384,6 +1431,7 @@ static Token *function(Token *tok, Type *basety, VarAttr *attr) {
   fn->body = compound_stmt(&tok, tok);
   fn->locals = locals;
   leave_scope();
+  resolve_goto_labels();
   return tok;
 }
 
