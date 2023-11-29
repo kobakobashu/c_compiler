@@ -83,6 +83,8 @@ typedef enum {
     ND_LABEL,     // Labeled statement
     ND_IF, // if
     ND_FOR, // for
+    ND_SWITCH, // "switch"
+    ND_CASE, // "case"
     ND_ADDR, // &
     ND_DEREF, // *
     ND_FUNCALL, // function call
@@ -127,6 +129,9 @@ struct Node {
   int64_t val;
   Obj *var;
   Node *args;
+  // Switch-cases
+  Node *case_next;
+  Node *default_case;
 };
 
 struct Obj {
