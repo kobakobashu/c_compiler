@@ -110,6 +110,7 @@ struct Node {
   Node *rhs;
   // "break" label
   char *brk_label;
+  char *cont_label;
   Node *body;
   Member *member;
   Node *cond;

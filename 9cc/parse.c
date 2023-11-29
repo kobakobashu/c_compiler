@@ -53,8 +53,9 @@ static Obj *current_fn;
 
 static Scope *scope = &(Scope){};
 
-// Current "goto" jump target.
+// Current "goto" and "continue" jump targets.
 static char *brk_label;
+static char *cont_label;
 
 static bool is_typename(Token *tok);
 static Type *declspec(Token **rest, Token *tok, VarAttr *attr);
@@ -974,6 +975,7 @@ static Node *expr_stmt(Token **rest, Token *tok) {
 //      | "while" "(" expr ")" stmt
 //      | "goto" ident ";"
 //      | "break" ";"
+//      | "continue" ";"
 //      | ident ":" stmt
 //      | "{" compound-stmt
 //      | expr-stmt
@@ -1007,7 +1009,9 @@ static Node *stmt(Token **rest, Token *tok) {
 
     enter_scope();
     char *brk = brk_label;
+    char *cont = cont_label;
     brk_label = node->brk_label = new_unique_name();
+    cont_label = node->cont_label = new_unique_name();
 
     if (is_typename(tok)) {
       Type *basety = declspec(&tok, tok, NULL);
@@ -1027,6 +1031,7 @@ static Node *stmt(Token **rest, Token *tok) {
     node->then = stmt(rest, tok);
     leave_scope();
     brk_label = brk;
+    cont_label = cont;
     return node;
   }
 
@@ -1036,9 +1041,13 @@ static Node *stmt(Token **rest, Token *tok) {
     node->cond = expr(&tok, tok);
     tok = skip(tok, ")");
     char *brk = brk_label;
+    char *cont = cont_label;
     brk_label = node->brk_label = new_unique_name();
+    cont_label = node->cont_label = new_unique_name();
+
     node->then = stmt(rest, tok);
     brk_label = brk;
+    cont_label = cont;
     return node;
   }
 
@@ -1056,6 +1065,15 @@ static Node *stmt(Token **rest, Token *tok) {
       error_tok(tok, "stray break");
     Node *node = new_node(ND_GOTO, tok);
     node->unique_label = brk_label;
+    *rest = skip(tok->next, ";");
+    return node;
+  }
+
+  if (equal(tok, "continue")) {
+    if (!cont_label)
+      error_tok(tok, "stray continue");
+    Node *node = new_node(ND_GOTO, tok);
+    node->unique_label = cont_label;
     *rest = skip(tok->next, ";");
     return node;
   }
