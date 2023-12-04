@@ -102,6 +102,7 @@ typedef enum {
     ND_BITXOR,    // ^
     ND_SHL,       // <<
     ND_SHR,       // >>
+    ND_COND, // ?:
 } NodeKind;
 
 typedef struct Node Node;
