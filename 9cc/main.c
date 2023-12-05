@@ -1,28 +1,32 @@
 #include "9cc.h"
 
-
 static char *opt_o;
 
 static char *input_path;
 
-static void usage(int status) {
+static void usage(int status)
+{
   fprintf(stderr, "9cc [ -o <path> ] <file>\n");
   exit(status);
 }
 
-static void parse_args(int argc, char **argv) {
-  for (int i = 1; i < argc; i++) {
+static void parse_args(int argc, char **argv)
+{
+  for (int i = 1; i < argc; i++)
+  {
     if (!strcmp(argv[i], "--help"))
       usage(0);
 
-    if (!strcmp(argv[i], "-o")) {
+    if (!strcmp(argv[i], "-o"))
+    {
       if (!argv[++i])
         usage(1);
       opt_o = argv[i];
       continue;
     }
 
-    if (!strncmp(argv[i], "-o", 2)) {
+    if (!strncmp(argv[i], "-o", 2))
+    {
       opt_o = argv[i] + 2;
       continue;
     }
@@ -37,7 +41,8 @@ static void parse_args(int argc, char **argv) {
     error("no input files");
 }
 
-static FILE *open_file(char *path) {
+static FILE *open_file(char *path)
+{
   if (!path || strcmp(path, "-") == 0)
     return stdout;
 
@@ -47,8 +52,8 @@ static FILE *open_file(char *path) {
   return out;
 }
 
-
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   parse_args(argc, argv);
 
   Token *tok = tokenize_file(input_path);

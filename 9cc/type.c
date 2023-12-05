@@ -7,7 +7,8 @@ Type *ty_short = &(Type){TY_SHORT, 2, 2};
 Type *ty_long = &(Type){TY_LONG, 8, 8};
 Type *ty_char = &(Type){TY_CHAR, 1, 1};
 
-static Type *new_type(TypeKind kind, int size, int align) {
+static Type *new_type(TypeKind kind, int size, int align)
+{
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = kind;
   ty->size = size;
@@ -15,29 +16,34 @@ static Type *new_type(TypeKind kind, int size, int align) {
   return ty;
 }
 
-bool is_integer(Type *ty) {
+bool is_integer(Type *ty)
+{
   TypeKind k = ty->kind;
   return k == TY_BOOL || k == TY_CHAR || k == TY_INT || k == TY_LONG || k == TY_SHORT || k == TY_ENUM;
 }
 
-Type *pointer_to(Type *base) {
+Type *pointer_to(Type *base)
+{
   Type *ty = new_type(TY_PTR, 8, 8);
   ty->base = base;
   return ty;
 }
 
-Type *array_of(Type *base, int len) {
+Type *array_of(Type *base, int len)
+{
   Type *ty = new_type(TY_ARRAY, base->size * len, base->align);
   ty->base = base;
   ty->array_len = len;
   return ty;
 }
 
-Type *enum_type(void) {
+Type *enum_type(void)
+{
   return new_type(TY_ENUM, 4, 4);
 }
 
-static Type *get_common_type(Type *ty1, Type *ty2) {
+static Type *get_common_type(Type *ty1, Type *ty2)
+{
   if (ty1->base)
     return pointer_to(ty1->base);
   if (ty1->size == 8 || ty2->size == 8)
@@ -52,13 +58,15 @@ static Type *get_common_type(Type *ty1, Type *ty2) {
 // be promoted to match with the other.
 //
 // This operation is called the "usual arithmetic conversion".
-static void usual_arith_conv(Node **lhs, Node **rhs) {
+static void usual_arith_conv(Node **lhs, Node **rhs)
+{
   Type *ty = get_common_type((*lhs)->ty, (*rhs)->ty);
   *lhs = new_cast(*lhs, ty);
   *rhs = new_cast(*rhs, ty);
 }
 
-void add_type(Node *node) {
+void add_type(Node *node)
+{
   if (!node || node->ty)
     return;
 
@@ -72,11 +80,12 @@ void add_type(Node *node) {
 
   for (Node *n = node->body; n; n = n->next)
     add_type(n);
-  
+
   for (Node *n = node->args; n; n = n->next)
     add_type(n);
 
-  switch (node->kind) {
+  switch (node->kind)
+  {
   case ND_NUM:
     node->ty = (node->val == (int)node->val) ? ty_int : ty_long;
     return;
@@ -87,7 +96,8 @@ void add_type(Node *node) {
     usual_arith_conv(&node->lhs, &node->rhs);
     node->ty = node->lhs->ty;
     return;
-  case ND_NEG: {
+  case ND_NEG:
+  {
     Type *ty = get_common_type(ty_int, node->lhs->ty);
     node->lhs = new_cast(node->lhs, ty);
     node->ty = ty;
@@ -128,9 +138,12 @@ void add_type(Node *node) {
     node->ty = node->var->ty;
     return;
   case ND_COND:
-    if (node->then->ty->kind == TY_VOID || node->els->ty->kind == TY_VOID) {
+    if (node->then->ty->kind == TY_VOID || node->els->ty->kind == TY_VOID)
+    {
       node->ty = ty_void;
-    } else {
+    }
+    else
+    {
       usual_arith_conv(&node->then, &node->els);
       node->ty = node->then->ty;
     }
@@ -155,11 +168,13 @@ void add_type(Node *node) {
     node->ty = node->lhs->ty->base;
     return;
   case ND_STMT_EXPR:
-    if (node->body) {
+    if (node->body)
+    {
       Node *stmt = node->body;
       while (stmt->next)
         stmt = stmt->next;
-      if (stmt->kind == ND_EXPR_STMT) {
+      if (stmt->kind == ND_EXPR_STMT)
+      {
         node->ty = stmt->lhs->ty;
         return;
       }
@@ -169,19 +184,22 @@ void add_type(Node *node) {
   }
 }
 
-Type *func_type(Type *return_ty) {
+Type *func_type(Type *return_ty)
+{
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_FUNC;
   ty->return_ty = return_ty;
   return ty;
 }
 
-Type *copy_type(Type *ty) {
+Type *copy_type(Type *ty)
+{
   Type *ret = calloc(1, sizeof(Type));
   *ret = *ty;
   return ret;
 }
 
-Type *struct_type(void) {
+Type *struct_type(void)
+{
   return new_type(TY_STRUCT, 0, 1);
 }

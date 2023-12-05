@@ -11,7 +11,8 @@ static char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static Obj *current_fn;
 
-static void println(char *fmt, ...) {
+static void println(char *fmt, ...)
+{
   va_list ap;
   va_start(ap, fmt);
   vfprintf(output_file, fmt, ap);
@@ -19,33 +20,42 @@ static void println(char *fmt, ...) {
   fprintf(output_file, "\n");
 }
 
-static int count(void) {
+static int count(void)
+{
   static int i = 1;
   return i++;
 }
 
-static void push(void) {
+static void push(void)
+{
   println("  push rax");
   depth++;
 }
 
-static void pop(char *arg) {
+static void pop(char *arg)
+{
   println("  pop %s", arg);
   depth--;
 }
 
 // Round up `n` to the nearest multiple of `align`. For instance,
 // align_to(5, 8) returns 8 and align_to(11, 8) returns 16.
-int align_to(int n, int align) {
+int align_to(int n, int align)
+{
   return (n + align - 1) / align * align;
 }
 
-static void gen_addr(Node *node) {
-  switch (node->kind) {
+static void gen_addr(Node *node)
+{
+  switch (node->kind)
+  {
   case ND_VAR:
-    if (node->var->is_local) {
+    if (node->var->is_local)
+    {
       println("  lea rax, [rbp + %d]", node->var->offset);
-    } else {
+    }
+    else
+    {
       println("  lea rax, [rip + %s]", node->var->name);
     }
     return;
@@ -66,8 +76,10 @@ static void gen_addr(Node *node) {
 }
 
 // Load a value from where %rax is pointing to.
-static void load(Type *ty) {
-  if (ty->kind == TY_ARRAY || ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
+static void load(Type *ty)
+{
+  if (ty->kind == TY_ARRAY || ty->kind == TY_STRUCT || ty->kind == TY_UNION)
+  {
     // If it is an array, do not attempt to load a value to the
     // register because in general we can't load an entire array to a
     // register. As a result, the result of an evaluation of an array
@@ -76,7 +88,7 @@ static void load(Type *ty) {
     // the first element of the array in C" occurs.
     return;
   }
-  
+
   // When we load a char or a short value to a register, we always
   // extend them to the size of int, so we can assume the lower half of
   // a register always contains a valid value. The upper half of a
@@ -91,14 +103,16 @@ static void load(Type *ty) {
     println("  movsxd rax, dword ptr [rax]");
   else
     println("  mov rax, [rax]");
-
 }
 
 // Store %rax to an address that the stack top is pointing to.
-static void store(Type *ty) {
+static void store(Type *ty)
+{
   pop("rdi");
-  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) {
-    for (int i = 0; i < ty->size; i++) {
+  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION)
+  {
+    for (int i = 0; i < ty->size; i++)
+    {
       println("  mov r8b, %d[rax]", i);
       println("  mov %d[rdi], r8b", i);
     }
@@ -115,8 +129,10 @@ static void store(Type *ty) {
     println("  mov [rdi], rax");
 }
 
-static void store_gp(int r, int offset, int sz) {
-  switch (sz) {
+static void store_gp(int r, int offset, int sz)
+{
+  switch (sz)
+  {
   case 1:
     println("  mov %d[rbp], %s", offset, argreg8[r]);
     return;
@@ -133,17 +149,26 @@ static void store_gp(int r, int offset, int sz) {
   unreachable();
 }
 
-static void cmp_zero(Type *ty) {
+static void cmp_zero(Type *ty)
+{
   if (is_integer(ty) && ty->size <= 4)
     println("  cmp eax, 0");
   else
     println("  cmp rax, 0");
 }
 
-enum { I8, I16, I32, I64 };
+enum
+{
+  I8,
+  I16,
+  I32,
+  I64
+};
 
-static int getTypeId(Type *ty) {
-  switch (ty->kind) {
+static int getTypeId(Type *ty)
+{
+  switch (ty->kind)
+  {
   case TY_CHAR:
     return I8;
   case TY_SHORT:
@@ -160,17 +185,19 @@ static char i32i16[] = "movswl eax, ax";
 static char i32i64[] = "movsxd rax, eax";
 
 static char *cast_table[][10] = {
-  {NULL,  NULL,   NULL, i32i64}, // i8
-  {i32i8, NULL,   NULL, i32i64}, // i16
-  {i32i8, i32i16, NULL, i32i64}, // i32
-  {i32i8, i32i16, NULL, NULL},   // i64
+    {NULL, NULL, NULL, i32i64},    // i8
+    {i32i8, NULL, NULL, i32i64},   // i16
+    {i32i8, i32i16, NULL, i32i64}, // i32
+    {i32i8, i32i16, NULL, NULL},   // i64
 };
 
-static void cast(Type *from, Type *to) {
+static void cast(Type *from, Type *to)
+{
   if (to->kind == TY_VOID)
     return;
 
-  if (to->kind == TY_BOOL) {
+  if (to->kind == TY_BOOL)
+  {
     cmp_zero(from);
     println("  setne al");
     println("  movzx eax, al");
@@ -184,9 +211,11 @@ static void cast(Type *from, Type *to) {
 }
 
 // Generate code for a given node.
-static void gen_expr(Node *node) {
+static void gen_expr(Node *node)
+{
   println(" .loc 1 %d", node->tok->line_no);
-  switch (node->kind) {
+  switch (node->kind)
+  {
   case ND_NULL_EXPR:
     return;
   case ND_NUM:
@@ -226,7 +255,8 @@ static void gen_expr(Node *node) {
     gen_expr(node->lhs);
     cast(node->lhs->ty, node->ty);
     return;
-  case ND_COND: {
+  case ND_COND:
+  {
     int c = count();
     gen_expr(node->cond);
     println("  cmp rax, 0");
@@ -249,7 +279,8 @@ static void gen_expr(Node *node) {
     println("  not rax");
     return;
 
-  case ND_LOGAND: {
+  case ND_LOGAND:
+  {
     int c = count();
     gen_expr(node->lhs);
     println("  cmp rax, 0");
@@ -264,7 +295,8 @@ static void gen_expr(Node *node) {
     println(".L.end.%d:", c);
     return;
   }
-  case ND_LOGOR: {
+  case ND_LOGOR:
+  {
     int c = count();
     gen_expr(node->lhs);
     println("  cmp rax, 0");
@@ -280,9 +312,11 @@ static void gen_expr(Node *node) {
     return;
   }
 
-  case ND_FUNCALL: {
+  case ND_FUNCALL:
+  {
     int nargs = 0;
-    for (Node *arg = node->args; arg; arg = arg->next) {
+    for (Node *arg = node->args; arg; arg = arg->next)
+    {
       gen_expr(arg);
       push();
       nargs++;
@@ -302,15 +336,19 @@ static void gen_expr(Node *node) {
 
   char *ax, *di;
 
-  if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base) {
+  if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base)
+  {
     ax = "rax";
     di = "rdi";
-  } else {
+  }
+  else
+  {
     ax = "eax";
     di = "edi";
   }
 
-  switch (node->kind) {
+  switch (node->kind)
+  {
   case ND_ADD:
     println("  add %s, %s", ax, di);
     return;
@@ -375,10 +413,13 @@ static void gen_expr(Node *node) {
   error_tok(node->tok, "invalid expression");
 }
 
-static void gen_stmt(Node *node) {
+static void gen_stmt(Node *node)
+{
   println(" .loc 1 %d", node->tok->line_no);
-  switch (node->kind) {
-  case ND_IF: {
+  switch (node->kind)
+  {
+  case ND_IF:
+  {
     int c = count();
     gen_expr(node->cond);
     println("  cmp rax, 0");
@@ -386,18 +427,21 @@ static void gen_stmt(Node *node) {
     gen_stmt(node->then);
     println("  jmp .L.end%d", c);
     println(".L.else%d:", c);
-    if (node->els) {
+    if (node->els)
+    {
       gen_stmt(node->els);
     }
     println(".L.end%d:", c);
     return;
   }
-  case ND_FOR: {
+  case ND_FOR:
+  {
     int c = count();
     if (node->init)
       gen_stmt(node->init);
     println(".L.begin%d:", c);
-    if (node->cond) {
+    if (node->cond)
+    {
       gen_expr(node->cond);
       println("  cmp rax, 0");
       println("  je %s", node->brk_label);
@@ -413,7 +457,8 @@ static void gen_stmt(Node *node) {
   case ND_SWITCH:
     gen_expr(node->cond);
 
-    for (Node *n = node->case_next; n; n = n->case_next) {
+    for (Node *n = node->case_next; n; n = n->case_next)
+    {
       char *reg = (node->cond->ty->size == 8) ? "rax" : "eax";
       println("  cmp %s, %ld", reg, n->val);
       println("  je %s", n->label);
@@ -453,14 +498,18 @@ static void gen_stmt(Node *node) {
   error_tok(node->tok, "invalid statement");
 }
 
-static void assign_lvar_offsets(Obj *prog) {
-  for (Obj *fn = prog; fn; fn = fn->next) {
-    if (!fn->is_function) {
+static void assign_lvar_offsets(Obj *prog)
+{
+  for (Obj *fn = prog; fn; fn = fn->next)
+  {
+    if (!fn->is_function)
+    {
       continue;
     }
 
     int offset = 0;
-    for (Obj *var = fn->locals; var; var = var->next) {
+    for (Obj *var = fn->locals; var; var = var->next)
+    {
       offset += var->ty->size;
       offset = align_to(offset, var->ty->align);
       var->offset = -offset;
@@ -469,26 +518,34 @@ static void assign_lvar_offsets(Obj *prog) {
   }
 }
 
-static void emit_data(Obj *prog) {
-  for (Obj *var = prog; var; var = var->next) {
+static void emit_data(Obj *prog)
+{
+  for (Obj *var = prog; var; var = var->next)
+  {
     if (var->is_function)
       continue;
 
     println("  .data");
     println("  .globl %s", var->name);
     println("%s:", var->name);
-    if (var->init_data) {
+    if (var->init_data)
+    {
       for (int i = 0; i < var->ty->size; i++)
         println("  .byte %d", var->init_data[i]);
-    } else {
+    }
+    else
+    {
       println("  .zero %d", var->ty->size);
     }
   }
 }
 
-static void emit_text(Obj *prog) {
-  for (Obj *fn = prog; fn; fn = fn->next) {
-    if (!fn->is_function || !fn->is_definition) {
+static void emit_text(Obj *prog)
+{
+  for (Obj *fn = prog; fn; fn = fn->next)
+  {
+    if (!fn->is_function || !fn->is_definition)
+    {
       continue;
     }
     println(".intel_syntax noprefix");
@@ -520,7 +577,8 @@ static void emit_text(Obj *prog) {
   }
 }
 
-void codegen(Obj *prog, FILE *out) {
+void codegen(Obj *prog, FILE *out)
+{
   output_file = out;
 
   assign_lvar_offsets(prog);
