@@ -103,6 +103,7 @@ typedef enum {
     ND_SHL,       // <<
     ND_SHR,       // >>
     ND_COND, // ?:
+    ND_NULL_EXPR, // Do nothing
 } NodeKind;
 
 typedef struct Node Node;

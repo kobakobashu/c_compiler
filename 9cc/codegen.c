@@ -187,6 +187,8 @@ static void cast(Type *from, Type *to) {
 static void gen_expr(Node *node) {
   println(" .loc 1 %d", node->tok->line_no);
   switch (node->kind) {
+  case ND_NULL_EXPR:
+    return;
   case ND_NUM:
     println("  mov rax, %ld", node->val);
     return;
