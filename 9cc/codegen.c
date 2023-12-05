@@ -255,6 +255,13 @@ static void gen_expr(Node *node)
     gen_expr(node->lhs);
     cast(node->lhs->ty, node->ty);
     return;
+  case ND_MEMZERO:
+    // `rep stosb` is equivalent to `memset(%rdi, %al, %rcx)`.
+    println("  mov rcx, %d", node->var->ty->size);
+    println("  lea rdi, %d[rbp]", node->var->offset);
+    println("  mov al, 0");
+    println("  rep stosb");
+    return;
   case ND_COND:
   {
     int c = count();

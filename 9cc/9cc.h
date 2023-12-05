@@ -24,25 +24,27 @@ char *format(char *fmt, ...);
 // tokenizer
 //
 
-typedef enum {
-    TK_IDENT,   // Identifiers
-    TK_PUNCT,   // Punctuators
-    TK_KEYWORD, // Keywords
-    TK_STR,     // String literals
-    TK_NUM,     // Numeric literals
-    TK_EOF,     // End-of-file markers
+typedef enum
+{
+  TK_IDENT,   // Identifiers
+  TK_PUNCT,   // Punctuators
+  TK_KEYWORD, // Keywords
+  TK_STR,     // String literals
+  TK_NUM,     // Numeric literals
+  TK_EOF,     // End-of-file markers
 } TokenKind;
 
 typedef struct Token Token;
-struct Token {
-    TokenKind kind;
-    Token *next;
-    int64_t val;
-    char *loc;
-    int len;
-    Type *ty;
-    char *str;
-    int line_no;
+struct Token
+{
+  TokenKind kind;
+  Token *next;
+  int64_t val;
+  char *loc;
+  int len;
+  Type *ty;
+  char *str;
+  int line_no;
 };
 
 void error(char *fmt, ...);
@@ -63,51 +65,54 @@ Token *tokenize_file(char *filename);
 typedef struct Obj Obj;
 typedef struct Member Member;
 
-typedef enum {
-    ND_ADD,
-    ND_SUB,
-    ND_MUL,
-    ND_DIV,
-    ND_NUM,
-    ND_EQ, // ==
-    ND_NE, // !=
-    ND_LT, // <
-    ND_LE, // <=
-    ND_VAR,
-    ND_ASSIGN, // =
-    ND_COMMA, // ,
-    ND_MEMBER, // . (struct member access)
-    ND_RETURN, // ret
-    ND_BLOCK, // { ... }
-    ND_GOTO,      // "goto"
-    ND_LABEL,     // Labeled statement
-    ND_IF, // if
-    ND_FOR, // for
-    ND_SWITCH, // "switch"
-    ND_CASE, // "case"
-    ND_ADDR, // &
-    ND_DEREF, // *
-    ND_FUNCALL, // function call
-    ND_STMT_EXPR, // Statement expression
-    ND_EXPR_STMT, // Expression statement
-    ND_NEG,
-    ND_CAST, // Type cast
-    ND_NOT, // !
-    ND_BITNOT, // ~
-    ND_LOGAND,    // &&
-    ND_LOGOR,     // ||
-    ND_MOD, // %
-    ND_BITAND,    // &
-    ND_BITOR,     // |
-    ND_BITXOR,    // ^
-    ND_SHL,       // <<
-    ND_SHR,       // >>
-    ND_COND, // ?:
-    ND_NULL_EXPR, // Do nothing
+typedef enum
+{
+  ND_ADD,
+  ND_SUB,
+  ND_MUL,
+  ND_DIV,
+  ND_NUM,
+  ND_EQ, // ==
+  ND_NE, // !=
+  ND_LT, // <
+  ND_LE, // <=
+  ND_VAR,
+  ND_ASSIGN,    // =
+  ND_COMMA,     // ,
+  ND_MEMBER,    // . (struct member access)
+  ND_RETURN,    // ret
+  ND_BLOCK,     // { ... }
+  ND_GOTO,      // "goto"
+  ND_LABEL,     // Labeled statement
+  ND_IF,        // if
+  ND_FOR,       // for
+  ND_SWITCH,    // "switch"
+  ND_CASE,      // "case"
+  ND_ADDR,      // &
+  ND_DEREF,     // *
+  ND_FUNCALL,   // function call
+  ND_STMT_EXPR, // Statement expression
+  ND_EXPR_STMT, // Expression statement
+  ND_NEG,
+  ND_CAST,      // Type cast
+  ND_NOT,       // !
+  ND_BITNOT,    // ~
+  ND_LOGAND,    // &&
+  ND_LOGOR,     // ||
+  ND_MOD,       // %
+  ND_BITAND,    // &
+  ND_BITOR,     // |
+  ND_BITXOR,    // ^
+  ND_SHL,       // <<
+  ND_SHR,       // >>
+  ND_COND,      // ?:
+  ND_NULL_EXPR, // Do nothing
+  ND_MEMZERO,   // Zero-clear a stack variable
 } NodeKind;
 
 typedef struct Node Node;
-struct Node {
+struct Node
+{
   NodeKind kind;
   Node *next;
   Type *ty;
@@ -138,7 +143,8 @@ struct Node {
   Node *default_case;
 };
 
-struct Obj {
+struct Obj
+{
   Obj *next;
   char *name;
   Obj *params;
@@ -169,7 +175,8 @@ void codegen(Obj *prog, FILE *out);
 // type.c
 //
 
-typedef enum {
+typedef enum
+{
   TY_VOID,
   TY_BOOL,
   TY_CHAR,
@@ -184,9 +191,10 @@ typedef enum {
   TY_UNION,
 } TypeKind;
 
-struct Type {
+struct Type
+{
   TypeKind kind;
-  int size; // sizeof() value
+  int size;  // sizeof() value
   int align; // alignment
   Type *base;
   Token *name;
@@ -210,7 +218,8 @@ int align_to(int n, int align);
 Type *struct_type(void);
 
 // Struct member
-struct Member {
+struct Member
+{
   Member *next;
   Type *ty;
   Token *tok; // for error message
