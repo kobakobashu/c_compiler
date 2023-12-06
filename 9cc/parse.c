@@ -129,6 +129,8 @@ static Node *shift(Token **rest, Token *tok);
 static Node *conditional(Token **rest, Token *tok);
 static int64_t const_expr(Token **rest, Token *tok);
 static Node *lvar_initializer(Token **rest, Token *tok, Obj *var);
+static void initializer2(Token **rest, Token *tok, Initializer *init);
+static Initializer *initializer(Token **rest, Token *tok, Type *ty);
 
 static Node *new_node(NodeKind kind, Token *tok)
 {
@@ -388,23 +390,39 @@ static Token *skip_excess_element(Token *tok) {
   return tok;
 }
 
-// initializer = "{" initializer ("," initializer)* "}"
-//             | assign
-static void initializer2(Token **rest, Token *tok, Initializer *init)
-{
-  if (init->ty->kind == TY_ARRAY)
-  {
-    tok = skip(tok, "{");
+// string-initializer = string-literal
+static void string_initializer(Token **rest, Token *tok, Initializer *init) {
+  int len = MIN(init->ty->array_len, tok->ty->array_len);
+  for (int i = 0; i < len; i++)
+    init->children[i]->expr = new_num(tok->str[i], tok);
+  *rest = tok->next;
+}
 
-    for (int i = 0; !consume(rest, tok, "}"); i++)
-    {
-      if (i > 0)
-        tok = skip(tok, ",");
-      if (i < init->ty->array_len)
-        initializer2(&tok, tok, init->children[i]);
-      else
-        tok = skip_excess_element(tok);
-    }
+// array-initializer = "{" initializer ("," initializer)* "}"
+static void array_initializer(Token **rest, Token *tok, Initializer *init) {
+  tok = skip(tok, "{");
+
+  for (int i = 0; !consume(rest, tok, "}"); i++) {
+    if (i > 0)
+      tok = skip(tok, ",");
+
+    if (i < init->ty->array_len)
+      initializer2(&tok, tok, init->children[i]);
+    else
+      tok = skip_excess_element(tok);
+  }
+}
+
+
+// initializer = string-initializer | array-initializer | assign
+static void initializer2(Token **rest, Token *tok, Initializer *init) {
+  if (init->ty->kind == TY_ARRAY && tok->kind == TK_STR) {
+    string_initializer(rest, tok, init);
+    return;
+  }
+
+  if (init->ty->kind == TY_ARRAY) {
+    array_initializer(rest, tok, init);
     return;
   }
 
