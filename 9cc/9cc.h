@@ -228,6 +228,7 @@ struct Member
   Token *tok; // for error message
   Token *name;
   int offset;
+  int idx;
 };
 
 extern Type *ty_void;
