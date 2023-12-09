@@ -67,6 +67,7 @@ Token *tokenize_file(char *filename);
 
 typedef struct Obj Obj;
 typedef struct Member Member;
+typedef struct Relocation Relocation;
 
 typedef enum
 {
@@ -161,6 +162,18 @@ struct Obj
   bool is_definition;
   bool is_static;
   char *init_data;
+  Relocation *rel;
+};
+
+// Global variable can be initialized either by a constant expression
+// or a pointer to another global variable. This struct represents the
+// latter.
+typedef struct Relocation Relocation;
+struct Relocation {
+  Relocation *next;
+  int offset;
+  char *label;
+  long addend;
 };
 
 Node *new_cast(Node *expr, Type *ty);
