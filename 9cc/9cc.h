@@ -219,6 +219,7 @@ struct Type
   Type *next;
   int array_len;
   Member *members;
+  bool is_flexible;
 };
 
 bool is_integer(Type *ty);
