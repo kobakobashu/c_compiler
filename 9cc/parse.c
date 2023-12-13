@@ -139,6 +139,9 @@ static Node *lvar_initializer(Token **rest, Token *tok, Obj *var);
 static void gvar_initializer(Token **rest, Token *tok, Obj *var);
 static void initializer2(Token **rest, Token *tok, Initializer *init);
 static Initializer *initializer(Token **rest, Token *tok, Type *ty, Type **new_ty);
+static bool is_function(Token *tok);
+static Token *function(Token *tok, Type *basety, VarAttr *attr);
+static Token *global_variable(Token *tok, Type *basety, VarAttr *attr);
 
 static Node *new_node(NodeKind kind, Token *tok)
 {
@@ -2344,6 +2347,17 @@ static Node *compound_stmt(Token **rest, Token *tok)
       if (attr.is_typedef)
       {
         tok = parse_typedef(tok, basety);
+        continue;
+      }
+      if (is_function(tok))
+      {
+        tok = function(tok, basety, &attr);
+        continue;
+      }
+
+      if (attr.is_extern)
+      {
+        tok = global_variable(tok, basety, &attr);
         continue;
       }
       cur = cur->next = declaration(&tok, tok, basety);
