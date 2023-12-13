@@ -43,6 +43,7 @@ typedef struct
 {
   bool is_typedef;
   bool is_static;
+  bool is_extern;
 } VarAttr;
 
 // This struct represents a variable initializer. Since initializers
@@ -382,6 +383,7 @@ static Obj *new_gvar(char *name, Type *ty)
 {
   Obj *var = new_var(name, ty);
   var->next = globals;
+  var->is_definition = true;
   globals = var;
   return var;
 }
@@ -393,7 +395,7 @@ static char *get_ident(Token *tok)
   return strndup(tok->loc, tok->len);
 }
 
-static Token *global_variable(Token *tok, Type *basety)
+static Token *global_variable(Token *tok, Type *basety, VarAttr *attr)
 {
   bool first = true;
 
@@ -405,6 +407,7 @@ static Token *global_variable(Token *tok, Type *basety)
 
     Type *ty = declarator(&tok, tok, basety);
     Obj *var = new_gvar(get_ident(ty->name), ty);
+    var->is_definition = !attr->is_extern;
     if (equal(tok, "="))
       gvar_initializer(&tok, tok->next, var);
   }
@@ -842,6 +845,7 @@ static bool is_typename(Token *tok)
       "typedef",
       "enum",
       "static",
+      "extern",
   };
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
@@ -2021,7 +2025,7 @@ static Type *enum_specifier(Token **rest, Token *tok)
   return ty;
 }
 
-// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long" | struct-decl | union-decl | typedef | "static" | typedef-name | enum-specifier)+
+// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long" | struct-decl | union-decl | typedef | "static" | "extern" | typedef-name | enum-specifier)+
 //
 // The order of typenames in a type-specifier doesn't matter. For
 // example, `int long static` means the same as `static long int`.
@@ -2058,7 +2062,7 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr)
   while (is_typename(tok))
   {
     // Handle storage class specifiers.
-    if (equal(tok, "typedef") || equal(tok, "static"))
+    if (equal(tok, "typedef") || equal(tok, "static") || equal(tok, "extern"))
     {
 
       if (!attr)
@@ -2067,11 +2071,13 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr)
       }
       if (equal(tok, "typedef"))
         attr->is_typedef = true;
-      else
+      else if (equal(tok, "static"))
         attr->is_static = true;
+      else
+        attr->is_extern = true;
 
-      if (attr->is_typedef + attr->is_static > 1)
-        error_tok(tok, "typedef and static may not be used together");
+      if (attr->is_typedef && attr->is_static + attr->is_extern > 1)
+        error_tok(tok, "typedef may not be used together with static or extern");
       tok = tok->next;
       continue;
       ;
@@ -2415,7 +2421,7 @@ Obj *parse(Token *tok)
       continue;
     }
 
-    tok = global_variable(tok, basety);
+    tok = global_variable(tok, basety, &attr);
   }
 
   return globals;
