@@ -163,6 +163,7 @@ struct Obj
   bool is_static;
   char *init_data;
   Relocation *rel;
+  int align; // alignment
 };
 
 // Global variable can be initialized either by a constant expression
@@ -243,6 +244,7 @@ struct Member
   Token *name;
   int offset;
   int idx;
+  int align;
 };
 
 extern Type *ty_void;
