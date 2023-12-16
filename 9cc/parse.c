@@ -1834,7 +1834,7 @@ static int64_t const_expr(Token **rest, Token *tok)
   return eval(node);
 }
 
-// stmt = "return" expr ";"
+// stmt = "return" expr? ";"
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "switch" "(" expr ")" stmt
 //      | "case" const-expr ":" stmt
@@ -1853,6 +1853,9 @@ static Node *stmt(Token **rest, Token *tok)
   if (equal(tok, "return"))
   {
     Node *node = new_node(ND_RETURN, tok);
+    if (consume(rest, tok->next, ";"))
+      return node;
+
     Node *exp = expr(&tok, tok->next);
     *rest = skip(tok, ";");
 
