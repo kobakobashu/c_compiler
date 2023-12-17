@@ -331,7 +331,13 @@ static void gen_expr(Node *node)
     for (int i = nargs - 1; i >= 0; i--)
       pop(argreg64[i]);
     println("  mov rax, 0");
-    println("  call %s", node->funcname);
+    if (depth % 2 == 0) {
+      println("  call %s", node->funcname);
+    } else {
+      println("  sub rsp, 8");
+      println("  call %s", node->funcname);
+      println("  add rsp, 8");
+    }
     return;
   }
   }
