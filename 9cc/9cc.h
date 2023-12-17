@@ -90,6 +90,7 @@ typedef enum
   ND_LABEL,     // Labeled statement
   ND_IF,        // if
   ND_FOR,       // for
+  ND_DO,        // "do"
   ND_SWITCH,    // "switch"
   ND_CASE,      // "case"
   ND_ADDR,      // &
