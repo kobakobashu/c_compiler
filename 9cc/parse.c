@@ -2253,7 +2253,7 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr)
   return ty;
 }
 
-// func-params = ("void" | param ("," param)*)? ")"
+// func-params = ("void" | param ("," param)*?)? ")"
 // param       = declspec declarator
 
 static Type *func_params(Token **rest, Token *tok, Type *ty)

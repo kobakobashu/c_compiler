@@ -338,6 +338,21 @@ static void gen_expr(Node *node)
       println("  call %s", node->funcname);
       println("  add rsp, 8");
     }
+
+    // It looks like the most significant 48 or 56 bits in RAX may
+    // contain garbage if a function return type is short or bool/char,
+    // respectively. We clear the upper bits here.
+    switch (node->ty->kind) {
+    case TY_BOOL:
+      println("  movzx eax, al");
+      return;
+    case TY_CHAR:
+      println("  movsbl eax, al");
+      return;
+    case TY_SHORT:
+      println("  movswl eax, ax");
+      return;
+    }
     return;
   }
   }
