@@ -222,6 +222,7 @@ struct Type
   int array_len;
   Member *members;
   bool is_flexible;
+  bool is_variadic;
 };
 
 bool is_integer(Type *ty);
