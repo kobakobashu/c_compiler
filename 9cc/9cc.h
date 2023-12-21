@@ -165,6 +165,7 @@ struct Obj
   char *init_data;
   Relocation *rel;
   int align; // alignment
+  Obj *va_area;
 };
 
 // Global variable can be initialized either by a constant expression

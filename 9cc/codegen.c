@@ -621,6 +621,36 @@ static void emit_text(Obj *prog)
     println("  mov rbp, rsp");
     println("  sub rsp, %d", fn->stack_size);
 
+    // Save arg registers if function is variadic
+    if (fn->va_area) {
+      int gp = 0;
+      for (Obj *var = fn->params; var; var = var->next)
+        gp++;
+      int off = fn->va_area->offset;
+
+      // va_elem
+      println("  mov dword ptr %d[rbp], %d", off, gp * 8);
+      println("  mov dword ptr %d[rbp], 0", off + 4);
+      println("  movq %d[rbp], rbp", off + 16);
+      println("  addq %d[rbp], %d", off + 16, off + 24);
+
+      // __reg_save_area__
+      println("  movq %d[rbp], rdi", off + 24);
+      println("  movq %d[rbp], rsi", off + 32);
+      println("  movq %d[rbp], rdx", off + 40);
+      println("  movq %d[rbp], rcx", off + 48);
+      println("  movq %d[rbp], r8", off + 56);
+      println("  movq %d[rbp], r9", off + 64);
+      println("  movsd %d[rbp], xmm0", off + 72);
+      println("  movsd %d[rbp], xmm1", off + 80);
+      println("  movsd %d[rbp], xmm2", off + 88);
+      println("  movsd %d[rbp], xmm3", off + 96);
+      println("  movsd %d[rbp], xmm4", off + 104);
+      println("  movsd %d[rbp], xmm5", off + 112);
+      println("  movsd %d[rbp], xmm6", off + 120);
+      println("  movsd %d[rbp], xmm7", off + 128);
+    }
+
     // Save passed-by-register arguments to the stack
     int i = 0;
     for (Obj *var = fn->params; var; var = var->next)
