@@ -858,6 +858,7 @@ static bool is_typename(Token *tok)
       "static",
       "extern",
       "_Alignas",
+      "signed",
   };
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
@@ -2110,7 +2111,7 @@ static Type *enum_specifier(Token **rest, Token *tok)
   return ty;
 }
 
-// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long" | struct-decl | union-decl | typedef | "static" | "extern" | typedef-name | enum-specifier)+
+// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long" | struct-decl | union-decl | typedef | "static" | "extern" | typedef-name | enum-specifier | "signed")+
 //
 // The order of typenames in a type-specifier doesn't matter. For
 // example, `int long static` means the same as `static long int`.
@@ -2132,13 +2133,14 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr)
   // as you can see below.
   enum
   {
-    VOID = 1 << 0,
-    BOOL = 1 << 2,
-    CHAR = 1 << 4,
-    SHORT = 1 << 6,
-    INT = 1 << 8,
-    LONG = 1 << 10,
-    OTHER = 1 << 12,
+    VOID   = 1 << 0,
+    BOOL   = 1 << 2,
+    CHAR   = 1 << 4,
+    SHORT  = 1 << 6,
+    INT    = 1 << 8,
+    LONG   = 1 << 10,
+    OTHER  = 1 << 12,
+    SIGNED = 1 << 13,
   };
 
   Type *ty = ty_int;
@@ -2221,6 +2223,8 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr)
       counter += INT;
     else if (equal(tok, "long"))
       counter += LONG;
+    else if (equal(tok, "signed"))
+      counter |= SIGNED;
     else
       unreachable();
 
@@ -2233,19 +2237,28 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr)
       ty = ty_bool;
       break;
     case CHAR:
+    case SIGNED + CHAR:
       ty = ty_char;
       break;
     case SHORT:
     case SHORT + INT:
+    case SIGNED + SHORT:
+    case SIGNED + SHORT + INT:
       ty = ty_short;
       break;
     case INT:
+    case SIGNED:
+    case SIGNED + INT:
       ty = ty_int;
       break;
     case LONG:
     case LONG + INT:
     case LONG + LONG:
     case LONG + LONG + INT:
+    case SIGNED + LONG:
+    case SIGNED + LONG + INT:
+    case SIGNED + LONG + LONG:
+    case SIGNED + LONG + LONG + INT:
       ty = ty_long;
       break;
     default:
